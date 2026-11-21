@@ -1,6 +1,6 @@
 # Native Android Kotlin Property Management System
 
-A robust, enterprise-ready native Android application built with **Kotlin**, **Jetpack Compose**, **MVVM Architecture**, and **Room Database** for tracking, managing, and persisting real estate property portfolios.
+A robust, enterprise-ready native Android application built with **Kotlin**, **Android Jetpack Fragments**, **Data Binding**, **Jetpack Compose**, **MVVM Architecture**, and **Room Database** for tracking, managing, and persisting real estate property portfolios.
 
 ---
 
@@ -27,10 +27,10 @@ This application adheres strictly to modern Android architectural recommendation
 
 ```
 ┌────────────────────────────────────────────────────────┐
-│                   UI Layer (Compose)                   │
-│         MainActivity / PropertyDashboardScreen          │
+│             UI Layer (Fragments / Compose)             │
+│    DashboardFragment | AddPropertyFragment | View...   │
 └───────────────────────────┬────────────────────────────┘
-                            │ (Observes LiveData)
+                            │ (Data Binding & LiveData)
                             ▼
 ┌────────────────────────────────────────────────────────┐
 │             ViewModel (PropertyViewModel)              │
@@ -44,7 +44,7 @@ This application adheres strictly to modern Android architectural recommendation
 │            Repository (PropertyRepository)             │
 │  - Decouples UI Logic from Local Storage               │
 │  - Exposes Room LiveData Stream as Single Truth        │
-└───────────────────────────┬────────────────────────────┘
+└────────────────────────────────────────────────────────┘
                             │ (Executes DAO Operations)
                             ▼
 ┌────────────────────────────────────────────────────────┐
@@ -77,14 +77,28 @@ com.example.propertymanagementsystem
 │       └── PropertyRepository.kt  # Repository layer delegating Room DAO methods
 │
 ├── ui
+│   ├── dashboard
+│   │   └── DashboardFragment.kt   # Dashboard Fragment with Data Binding layout
+│   ├── properties
+│   │   ├── AddPropertyFragment.kt # Property Registration Form Fragment
+│   │   └── ViewPropertiesFragment.kt # Property Directory & Caretaker Action Fragment
 │   ├── theme
 │   │   ├── Color.kt               # Application color definitions
 │   │   ├── Theme.kt               # Material 3 Theme setup
 │   │   └── Type.kt                # Typography configuration
 │   └── viewmodel
-│       └── PropertyViewModel.kt   # AndroidViewModel managing LiveData transformations & coroutines
+│       └── PropertyViewModel.kt   # Shared AndroidViewModel managing LiveData transformations & coroutines
 │
-└── MainActivity.kt                # Jetpack Compose UI Dashboard & entry point
+├── res
+│   ├── layout
+│   │   ├── activity_main.xml          # NavHostFragment layout
+│   │   ├── fragment_dashboard.xml     # Dashboard XML Data Binding layout
+│   │   ├── fragment_add_property.xml  # Add Property XML layout
+│   │   └── fragment_view_properties.xml # View Properties XML layout
+│   └── navigation
+│       └── nav_graph.xml              # Navigation Graph configuration
+│
+└── MainActivity.kt                    # Navigation Host Activity
 ```
 
 ---
@@ -96,8 +110,9 @@ com.example.propertymanagementsystem
   - Total property count (`propertyCountText`)
   - Occupancy breakdown (`occupancySummaryText`)
   - Financial overview showing formatted monthly revenue (`totalMonthlyRentText`)
+- **Direct Caretaker Dialing**: Select any registered property from a dropdown and launch `Intent.ACTION_DIAL` to contact caretakers instantly.
 - **Persistent Storage**: Full database persistence using Room SQLite; data remains available across app kills and restarts.
-- **Reactive UI**: Data changes automatically update Jetpack Compose components via `observeAsState()`.
+- **Reactive Data Binding**: Data changes automatically update XML layouts via `<layout>` Data Binding and `observeAsState()`.
 
 ---
 
@@ -144,15 +159,16 @@ To view, inspect, and query the underlying SQLite database live while the app is
 | **David Rodgers** | Project Lead, Auth, Navigation & Release | Led project architecture setup, authentication flow design, navigation routing, and release engineering. |
 | **Adam Jerry** | Room Database Layer | Architected the Room SQLite persistence layer including `Property` entity schema, `PropertyDao`, and `PropertyDatabase` singleton. |
 | **Owen Karanja** | ViewModel & LiveData Logic | Designed `PropertyViewModel`, business validation rules, and reactive LiveData transformations (`propertyCountText`, `occupancySummaryText`, `totalMonthlyRentText`, `allPropertiesText`). |
-| **Grace Ngechu** | UI Fragments & Data Binding | Built responsive Jetpack Compose Material 3 UI screens, form components, dynamic data binding, and feedback notification UI. |
+| **Grace Ngechu** | UI Fragments & Data Binding | Built responsive Android Fragments, Data Binding XML layouts (`fragment_dashboard.xml`, `fragment_add_property.xml`, `fragment_view_properties.xml`), input fields, dropdowns, and intent actions. |
 | **Lovine Muema** | Repository, Coroutine Persistence & Documentation | Built `PropertyRepository`, integrated Kotlin Coroutines (`viewModelScope`, `Dispatchers.IO`) for background database persistence, and compiled technical documentation (`README.md`). |
 
 ---
 
 ## 🛠 Tech Stack
 - **Language**: Kotlin
-- **UI Framework**: Jetpack Compose (Material 3)
+- **UI Framework**: Android Jetpack Fragments, Data Binding, Material 3, Jetpack Compose
+- **Navigation**: Jetpack Navigation Component (`nav_graph.xml`)
 - **Architecture**: MVVM + Repository Pattern
 - **Database**: Room Persistence Library (SQLite)
 - **Async & Concurrency**: Kotlin Coroutines (`Dispatchers.IO`, `viewModelScope`)
-- **State Management**: LiveData & `observeAsState()`
+- **State Management**: LiveData & Data Binding Lifecycle Observers
