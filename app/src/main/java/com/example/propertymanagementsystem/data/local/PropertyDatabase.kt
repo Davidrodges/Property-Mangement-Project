@@ -22,5 +22,9 @@ abstract class PropertyDatabase : RoomDatabase() {
                     "property_management_db"
                 ).build().also { INSTANCE = it }
             }
+
+        fun setTestInstance(database: PropertyDatabase?) {
+            INSTANCE = database
+        }
     }
 }
