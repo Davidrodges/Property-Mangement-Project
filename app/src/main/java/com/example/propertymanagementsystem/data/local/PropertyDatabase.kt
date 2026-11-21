@@ -6,7 +6,7 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.example.propertymanagementsystem.data.model.Property
 
-@Database(entities = [Property::class], version = 1, exportSchema = false)
+@Database(entities = [Property::class], version = 2, exportSchema = false)
 abstract class PropertyDatabase : RoomDatabase() {
     abstract fun propertyDao(): PropertyDao
 
@@ -20,7 +20,9 @@ abstract class PropertyDatabase : RoomDatabase() {
                     context.applicationContext,
                     PropertyDatabase::class.java,
                     "property_management_db"
-                ).build().also { INSTANCE = it }
+                )
+                    .fallbackToDestructiveMigration(true)
+                    .build().also { INSTANCE = it }
             }
 
         fun setTestInstance(database: PropertyDatabase?) {
