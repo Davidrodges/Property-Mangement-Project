@@ -46,6 +46,7 @@ fun PropertyDashboardScreen(
     val allProperties by viewModel.allPropertiesText.observeAsState("No properties registered yet. Tap 'Add Property' to begin.")
 
     var feedbackMessage by remember { mutableStateOf<String?>(null) }
+    var showAddDialog by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
 
     Scaffold(
@@ -60,24 +61,7 @@ fun PropertyDashboardScreen(
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = {
-                    val sampleNames = listOf("Sunset Heights", "Green Valley", "Royal Apartments", "Metro Plaza", "Hilltop Villas")
-                    val sampleLocations = listOf("Nairobi", "Mombasa", "Kisumu", "Nakuru", "Eldoret")
-                    val sampleTypes = listOf("Residential", "Commercial")
-                    val sampleRents = listOf("25000", "40000", "60000", "15000", "80000")
-                    val samplePhones = listOf("0712345678", "0722334455", "0733445566", "0744556677", "0755667788")
-
-                    val randomIndex = (0 until sampleNames.size).random()
-                    val result = viewModel.validateAndAddProperty(
-                        name = sampleNames[randomIndex],
-                        location = sampleLocations.random(),
-                        type = sampleTypes.random(),
-                        rentInput = sampleRents.random(),
-                        phone = samplePhones.random(),
-                        isOccupied = (0..1).random() == 1
-                    )
-                    feedbackMessage = result.second
-                }
+                onClick = { showAddDialog = true }
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Add Property")
             }
@@ -180,5 +164,126 @@ fun PropertyDashboardScreen(
             // Bottom spacer to avoid FAB overlapping content in landscape mode
             Spacer(modifier = Modifier.height(72.dp))
         }
+
+        if (showAddDialog) {
+            AddPropertyDialog(
+                onDismiss = { showAddDialog = false },
+                onAddProperty = { name, location, type, rent, phone, isOccupied ->
+                    val result = viewModel.validateAndAddProperty(name, location, type, rent, phone, isOccupied)
+                    if (result.first) {
+                        feedbackMessage = result.second
+                    }
+                    result
+                }
+            )
+        }
     }
+}
+
+@Composable
+fun AddPropertyDialog(
+    onDismiss: () -> Unit,
+    onAddProperty: (name: String, location: String, type: String, rent: String, phone: String, isOccupied: Boolean) -> Pair<Boolean, String>
+) {
+    var name by remember { mutableStateOf("") }
+    var location by remember { mutableStateOf("") }
+    var type by remember { mutableStateOf("Residential") }
+    var rent by remember { mutableStateOf("") }
+    var phone by remember { mutableStateOf("") }
+    var isOccupied by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add New Property") },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                errorMessage?.let { error ->
+                    Text(
+                        text = error,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Property Name") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
+                OutlinedTextField(
+                    value = location,
+                    onValueChange = { location = it },
+                    label = { Text("Location") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
+                OutlinedTextField(
+                    value = type,
+                    onValueChange = { type = it },
+                    label = { Text("Property Type (e.g. Residential)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
+                OutlinedTextField(
+                    value = rent,
+                    onValueChange = { rent = it },
+                    label = { Text("Monthly Rent (KSh)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
+                OutlinedTextField(
+                    value = phone,
+                    onValueChange = { phone = it },
+                    label = { Text("Caretaker Phone") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Is Occupied?")
+                    Switch(
+                        checked = isOccupied,
+                        onCheckedChange = { isOccupied = it }
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val result = onAddProperty(name, location, type, rent, phone, isOccupied)
+                    if (result.first) {
+                        onDismiss()
+                    } else {
+                        errorMessage = result.second
+                    }
+                }
+            ) {
+                Text("Add")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }
