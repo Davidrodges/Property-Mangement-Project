@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/dashboardFragment">
+
+    <fragment
+        android:id="@+id/dashboardFragment"
+        android:name="com.example.propertymanagementsystem.ui.dashboard.DashboardFragment"
+        android:label="Dashboard"
+        tools:layout="@layout/fragment_dashboard">
+        <action
+            android:id="@+id/action_dashboardFragment_to_addPropertyFragment"
+            app:destination="@id/addPropertyFragment" />
+        <action
+            android:id="@+id/action_dashboardFragment_to_viewPropertiesFragment"
+            app:destination="@id/viewPropertiesFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/addPropertyFragment"
+        android:name="com.example.propertymanagementsystem.ui.properties.AddPropertyFragment"
+        android:label="Add Property"
+        tools:layout="@layout/fragment_add_property">
+        <action
+            android:id="@+id/action_addPropertyFragment_to_viewPropertiesFragment"
+            app:destination="@id/viewPropertiesFragment"
+            app:popUpTo="@id/dashboardFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/viewPropertiesFragment"
+        android:name="com.example.propertymanagementsystem.ui.properties.ViewPropertiesFragment"
+        android:label="View Properties"
+        tools:layout="@layout/fragment_view_properties" />
+
+</navigation>
