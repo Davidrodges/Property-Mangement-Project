@@ -1,0 +1,107 @@
+package com.example.propertymanagementsystem.ui.viewmodel
+
+import android.app.Application
+import androidx.arch.core.executor.testing.InstantTaskExecutorRule
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Before
+import org.junit.Rule
+import org.junit.Test
+
+class PropertyViewModelTest {
+
+    @get:Rule
+    val instantTaskExecutorRule = InstantTaskExecutorRule()
+
+    private class TestApplication : Application()
+
+    private lateinit var application: Application
+    private lateinit var viewModel: PropertyViewModel
+
+    @Before
+    fun setUp() {
+        application = TestApplication()
+        viewModel = PropertyViewModel(application)
+        viewModel.propertyCountText.observeForever {}
+        viewModel.occupancySummaryText.observeForever {}
+        viewModel.totalMonthlyRentText.observeForever {}
+        viewModel.allPropertiesText.observeForever {}
+    }
+
+    @Test
+    fun initial_state_is_empty() {
+        assertEquals("Total Properties: 0", viewModel.propertyCountText.value)
+        assertEquals("Occupied: 0 | Vacant: 0", viewModel.occupancySummaryText.value)
+        assertEquals("Total Monthly Rent: KSh 0.00", viewModel.totalMonthlyRentText.value)
+        assertEquals("No properties registered yet. Tap 'Add Property' to begin.", viewModel.allPropertiesText.value)
+    }
+
+    @Test
+    fun validateAndAddProperty_success() {
+        val result = viewModel.validateAndAddProperty(
+            name = "Sunset Apartments",
+            location = "Nairobi",
+            type = "Residential",
+            rentInput = "25000",
+            phone = "0712345678",
+            isOccupied = true
+        )
+
+        assertTrue(result.first)
+        assertEquals("Property added successfully", result.second)
+        assertEquals("Total Properties: 1", viewModel.propertyCountText.value)
+        assertEquals("Occupied: 1 | Vacant: 0", viewModel.occupancySummaryText.value)
+        assertEquals("Total Monthly Rent: KSh 25,000.00", viewModel.totalMonthlyRentText.value)
+    }
+
+    @Test
+    fun validateAndAddProperty_validations() {
+        // Blank name
+        var result = viewModel.validateAndAddProperty("", "Nairobi", "Residential", "25000", "0712345678", true)
+        assertFalse(result.first)
+        assertEquals("Property name is required.", result.second)
+
+        // Blank location
+        result = viewModel.validateAndAddProperty("Sunset", "", "Residential", "25000", "0712345678", true)
+        assertFalse(result.first)
+        assertEquals("Property location is required.", result.second)
+
+        // Blank type
+        result = viewModel.validateAndAddProperty("Sunset", "Nairobi", "", "25000", "0712345678", true)
+        assertFalse(result.first)
+        assertEquals("Property type is required.", result.second)
+
+        // Blank phone
+        result = viewModel.validateAndAddProperty("Sunset", "Nairobi", "Residential", "25000", "", true)
+        assertFalse(result.first)
+        assertEquals("Caretaker phone number is required.", result.second)
+
+        // Invalid rent
+        result = viewModel.validateAndAddProperty("Sunset", "Nairobi", "Residential", "abc", "0712345678", true)
+        assertFalse(result.first)
+        assertEquals("Enter a valid monthly rent.", result.second)
+
+        // Zero rent
+        result = viewModel.validateAndAddProperty("Sunset", "Nairobi", "Residential", "0", "0712345678", true)
+        assertFalse(result.first)
+        assertEquals("Monthly rent must be greater than zero.", result.second)
+
+        // Negative rent
+        result = viewModel.validateAndAddProperty("Sunset", "Nairobi", "Residential", "-100", "0712345678", true)
+        assertFalse(result.first)
+        assertEquals("Monthly rent must be greater than zero.", result.second)
+    }
+
+    @Test
+    fun portfolio_statistics_multiple_properties() {
+        viewModel.validateAndAddProperty("Prop 1", "Loc 1", "Res", "30000", "111", true)
+        viewModel.validateAndAddProperty("Prop 2", "Loc 2", "Com", "45000", "222", true)
+        viewModel.validateAndAddProperty("Prop 3", "Loc 3", "Res", "50000", "333", false)
+        viewModel.validateAndAddProperty("Prop 4", "Loc 4", "Res", "20000", "444", false)
+
+        assertEquals("Total Properties: 4", viewModel.propertyCountText.value)
+        assertEquals("Occupied: 2 | Vacant: 2", viewModel.occupancySummaryText.value)
+        assertEquals("Total Monthly Rent: KSh 145,000.00", viewModel.totalMonthlyRentText.value)
+    }
+}

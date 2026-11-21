@@ -1,4 +1,4 @@
-package com.example.propertymangement.ui.theme
+package com.example.propertymanagementsystem.ui.theme
 
 import android.app.Activity
 import android.os.Build
@@ -34,7 +34,7 @@ private val LightColorScheme = lightColorScheme(
 )
 
 @Composable
-fun PropertyMangementTheme(
+fun PropertyManagementSystemTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     // Dynamic color is available on Android 12+
     dynamicColor: Boolean = true,
