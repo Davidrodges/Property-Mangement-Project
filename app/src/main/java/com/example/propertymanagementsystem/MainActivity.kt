@@ -1,5 +1,7 @@
 package com.example.propertymanagementsystem
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -9,16 +11,21 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.propertymanagementsystem.data.model.Property
 import com.example.propertymanagementsystem.ui.theme.PropertyManagementSystemTheme
 import com.example.propertymanagementsystem.ui.viewmodel.PropertyViewModel
+import java.util.Locale
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -43,8 +50,9 @@ fun PropertyDashboardScreen(
     val propertyCount by viewModel.propertyCountText.observeAsState("Total Properties: 0")
     val occupancySummary by viewModel.occupancySummaryText.observeAsState("Occupied: 0 | Vacant: 0")
     val totalRent by viewModel.totalMonthlyRentText.observeAsState("Total Monthly Rent: KSh 0.00")
-    val allProperties by viewModel.allPropertiesText.observeAsState("No properties registered yet. Tap 'Add Property' to begin.")
+    val properties by viewModel.allProperties.observeAsState(emptyList())
 
+    val context = LocalContext.current
     var feedbackMessage by remember { mutableStateOf<String?>(null) }
     var showAddDialog by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
@@ -150,15 +158,42 @@ fun PropertyDashboardScreen(
                 fontWeight = FontWeight.Bold
             )
 
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-            ) {
-                Text(
-                    text = allProperties,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(16.dp)
-                )
+            if (properties.isEmpty()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                ) {
+                    Text(
+                        text = "No properties registered yet. Tap 'Add Property' to begin.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
+            } else {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    properties.forEach { property ->
+                        PropertyCard(
+                            property = property,
+                            onCallCaretaker = { phone ->
+                                val intent = Intent(Intent.ACTION_DIAL).apply {
+                                    data = Uri.parse("tel:$phone")
+                                }
+                                try {
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    feedbackMessage = "Unable to launch dialer"
+                                }
+                            },
+                            onDelete = {
+                                viewModel.deleteProperty(property)
+                                feedbackMessage = "Property deleted successfully"
+                            }
+                        )
+                    }
+                }
             }
 
             // Bottom spacer to avoid FAB overlapping content in landscape mode
@@ -176,6 +211,78 @@ fun PropertyDashboardScreen(
                     result
                 }
             )
+        }
+    }
+}
+
+@Composable
+fun PropertyCard(
+    property: Property,
+    onCallCaretaker: (String) -> Unit,
+    onDelete: () -> Unit
+) {
+    val statusText = if (property.isOccupied) "Occupied" else "Vacant"
+    val statusColor = if (property.isOccupied) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary
+    val formattedRent = String.format(Locale.US, "%,.2f", property.monthlyRent)
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = property.propertyName,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Badge(containerColor = statusColor) {
+                    Text(
+                        text = statusText,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                }
+            }
+
+            Text("Location: ${property.location}", style = MaterialTheme.typography.bodyMedium)
+            Text("Type: ${property.propertyType}", style = MaterialTheme.typography.bodyMedium)
+            Text("Monthly Rent: KSh $formattedRent", style = MaterialTheme.typography.bodyMedium)
+            Text("Caretaker Phone: ${property.caretakerPhone}", style = MaterialTheme.typography.bodyMedium)
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = { onCallCaretaker(property.caretakerPhone) },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                ) {
+                    Icon(Icons.Default.Phone, contentDescription = "Call", modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Call Manager")
+                }
+
+                OutlinedButton(
+                    onClick = onDelete,
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Icon(Icons.Default.Delete, contentDescription = "Delete", modifier = Modifier.size(18.dp))
+                }
+            }
         }
     }
 }
