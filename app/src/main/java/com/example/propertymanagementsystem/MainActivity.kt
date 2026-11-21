@@ -54,11 +54,19 @@ fun LoginScreen(
     onLoginSuccess: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var isRegistering by remember { mutableStateOf(false) }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var successMessage by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
+    val sharedPrefs = remember {
+        context.getSharedPreferences("property_auth_prefs", android.content.Context.MODE_PRIVATE)
+    }
 
     Surface(
         modifier = modifier.fillMaxSize(),
@@ -96,7 +104,7 @@ fun LoginScreen(
                 color = MaterialTheme.colorScheme.onBackground
             )
             Text(
-                text = "Sign in to manage your portfolio",
+                text = if (isRegistering) "Create a new account" else "Sign in to manage your portfolio",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -122,6 +130,20 @@ fun LoginScreen(
                             Text(
                                 text = error,
                                 color = MaterialTheme.colorScheme.onErrorContainer,
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.padding(12.dp)
+                            )
+                        }
+                    }
+
+                    successMessage?.let { success ->
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = success,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
                                 style = MaterialTheme.typography.bodySmall,
                                 modifier = Modifier.padding(12.dp)
                             )
@@ -155,6 +177,18 @@ fun LoginScreen(
                         singleLine = true
                     )
 
+                    if (isRegistering) {
+                        OutlinedTextField(
+                            value = confirmPassword,
+                            onValueChange = { confirmPassword = it },
+                            label = { Text("Confirm Password") },
+                            leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "Confirm Password") },
+                            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+                    }
+
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Button(
@@ -163,14 +197,39 @@ fun LoginScreen(
                             val trimmedPassword = password.trim()
                             if (trimmedEmail.isEmpty()) {
                                 errorMessage = "Email address is required."
+                                successMessage = null
                             } else if (!android.util.Patterns.EMAIL_ADDRESS.matcher(trimmedEmail).matches()) {
                                 errorMessage = "Enter a valid email address."
+                                successMessage = null
                             } else if (trimmedPassword.length < 6) {
                                 errorMessage = "Password must be at least 6 characters."
+                                successMessage = null
+                            } else if (isRegistering && trimmedPassword != confirmPassword.trim()) {
+                                errorMessage = "Passwords do not match."
+                                successMessage = null
                             } else {
                                 errorMessage = null
                                 isLoading = true
-                                onLoginSuccess()
+
+                                if (isRegistering) {
+                                    sharedPrefs.edit()
+                                        .putString("reg_email_$trimmedEmail", trimmedEmail)
+                                        .putString("reg_pass_$trimmedEmail", trimmedPassword)
+                                        .apply()
+                                    successMessage = "Account registered successfully! You can now sign in."
+                                    isLoading = false
+                                    isRegistering = false
+                                    password = ""
+                                    confirmPassword = ""
+                                } else {
+                                    val savedPass = sharedPrefs.getString("reg_pass_$trimmedEmail", null)
+                                    if (savedPass != null && savedPass != trimmedPassword) {
+                                        errorMessage = "Incorrect password."
+                                        isLoading = false
+                                    } else {
+                                        onLoginSuccess()
+                                    }
+                                }
                             }
                         },
                         modifier = Modifier
@@ -184,8 +243,23 @@ fun LoginScreen(
                                 color = MaterialTheme.colorScheme.onPrimary
                             )
                         } else {
-                            Text("Sign In", style = MaterialTheme.typography.titleMedium)
+                            Text(if (isRegistering) "Register Account" else "Sign In", style = MaterialTheme.typography.titleMedium)
                         }
+                    }
+
+                    TextButton(
+                        onClick = {
+                            isRegistering = !isRegistering
+                            errorMessage = null
+                            successMessage = null
+                            password = ""
+                            confirmPassword = ""
+                        },
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                    ) {
+                        Text(
+                            text = if (isRegistering) "Already have an account? Sign In" else "New user? Register here"
+                        )
                     }
                 }
             }
