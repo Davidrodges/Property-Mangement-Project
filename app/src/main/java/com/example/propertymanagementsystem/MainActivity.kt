@@ -26,6 +26,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.propertymanagementsystem.data.model.Property
 import com.example.propertymanagementsystem.ui.theme.PropertyManagementSystemTheme
 import com.example.propertymanagementsystem.ui.viewmodel.PropertyViewModel
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 
 class MainActivity : ComponentActivity() {
@@ -430,6 +432,7 @@ fun PropertyDashboardScreen(
     val context = LocalContext.current
     var feedbackMessage by remember { mutableStateOf<String?>(null) }
     var showAddDialog by remember { mutableStateOf(false) }
+    var propertyToEdit by remember { mutableStateOf<Property?>(null) }
     var showMenu by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
 
@@ -587,6 +590,9 @@ fun PropertyDashboardScreen(
                                     feedbackMessage = "Unable to launch dialer"
                                 }
                             },
+                            onEdit = {
+                                propertyToEdit = property
+                            },
                             onDelete = {
                                 viewModel.deleteProperty(property)
                                 feedbackMessage = "Property deleted successfully"
@@ -603,12 +609,37 @@ fun PropertyDashboardScreen(
         if (showAddDialog) {
             AddPropertyDialog(
                 onDismiss = { showAddDialog = false },
-                onAddProperty = { name, location, type, rent, phone, isOccupied ->
-                    val result = viewModel.validateAndAddProperty(name, location, type, rent, phone, isOccupied)
+                onAddProperty = { name, location, type, rent, phone, isOccupied, totalUnits, vacantUnits ->
+                    val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
+                    val currentDate = dateFormat.format(Date())
+                    val lastVacant = if (isOccupied) "Occupied (Last Vacant: $currentDate)" else "Vacant since $currentDate"
+
+                    val result = viewModel.validateAndAddPropertyWithUnits(
+                        name = name,
+                        location = location,
+                        type = type,
+                        rentInput = rent,
+                        phone = phone,
+                        isOccupied = isOccupied,
+                        totalUnits = totalUnits,
+                        vacantUnits = vacantUnits,
+                        lastVacantDate = lastVacant
+                    )
                     if (result.first) {
                         feedbackMessage = result.second
                     }
                     result
+                }
+            )
+        }
+
+        propertyToEdit?.let { prop ->
+            EditPropertyDialog(
+                property = prop,
+                onDismiss = { propertyToEdit = null },
+                onSave = { updatedProperty ->
+                    viewModel.updateProperty(updatedProperty)
+                    feedbackMessage = "Property updated successfully"
                 }
             )
         }
@@ -619,6 +650,7 @@ fun PropertyDashboardScreen(
 fun PropertyCard(
     property: Property,
     onCallCaretaker: (String) -> Unit,
+    onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
     val statusText = if (property.isOccupied) "Occupied" else "Vacant"
@@ -659,6 +691,8 @@ fun PropertyCard(
             Text("Type: ${property.propertyType}", style = MaterialTheme.typography.bodyMedium)
             Text("Monthly Rent: KSh $formattedRent", style = MaterialTheme.typography.bodyMedium)
             Text("Caretaker Phone: ${property.caretakerPhone}", style = MaterialTheme.typography.bodyMedium)
+            Text("Vacancy: ${property.vacantUnits} vacant / ${property.totalUnits} total units", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+            Text("Last Status Change: ${property.lastVacantDate}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
             Row(
                 modifier = Modifier
@@ -672,8 +706,15 @@ fun PropertyCard(
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                 ) {
                     Icon(Icons.Default.Phone, contentDescription = "Call", modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
                     Text("Call Caretaker")
+                }
+
+                OutlinedButton(
+                    onClick = onEdit,
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.secondary)
+                ) {
+                    Icon(Icons.Default.Edit, contentDescription = "Edit", modifier = Modifier.size(18.dp))
                 }
 
                 OutlinedButton(
@@ -690,7 +731,7 @@ fun PropertyCard(
 @Composable
 fun AddPropertyDialog(
     onDismiss: () -> Unit,
-    onAddProperty: (name: String, location: String, type: String, rent: String, phone: String, isOccupied: Boolean) -> Pair<Boolean, String>
+    onAddProperty: (name: String, location: String, type: String, rent: String, phone: String, isOccupied: Boolean, totalUnits: Int, vacantUnits: Int) -> Pair<Boolean, String>
 ) {
     var name by remember { mutableStateOf("") }
     var location by remember { mutableStateOf("") }
@@ -698,6 +739,8 @@ fun AddPropertyDialog(
     var rent by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
     var isOccupied by remember { mutableStateOf(false) }
+    var totalUnitsStr by remember { mutableStateOf("1") }
+    var vacantUnitsStr by remember { mutableStateOf("1") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     AlertDialog(
@@ -758,6 +801,22 @@ fun AddPropertyDialog(
                     singleLine = true
                 )
 
+                OutlinedTextField(
+                    value = totalUnitsStr,
+                    onValueChange = { totalUnitsStr = it },
+                    label = { Text("Total Units") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
+                OutlinedTextField(
+                    value = vacantUnitsStr,
+                    onValueChange = { vacantUnitsStr = it },
+                    label = { Text("Vacant Units") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -776,7 +835,9 @@ fun AddPropertyDialog(
         confirmButton = {
             TextButton(
                 onClick = {
-                    val result = onAddProperty(name, location, type, rent, phone, isOccupied)
+                    val totalVal = totalUnitsStr.toIntOrNull() ?: 1
+                    val vacantVal = vacantUnitsStr.toIntOrNull() ?: 1
+                    val result = onAddProperty(name, location, type, rent, phone, isOccupied, totalVal, vacantVal)
                     if (result.first) {
                         onDismiss()
                     } else {
@@ -785,6 +846,158 @@ fun AddPropertyDialog(
                 }
             ) {
                 Text("Add")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+fun EditPropertyDialog(
+    property: Property,
+    onDismiss: () -> Unit,
+    onSave: (Property) -> Unit
+) {
+    var propertyName by remember { mutableStateOf(property.propertyName) }
+    var location by remember { mutableStateOf(property.location) }
+    var propertyType by remember { mutableStateOf(property.propertyType) }
+    var monthlyRent by remember { mutableStateOf(property.monthlyRent.toString()) }
+    var caretakerPhone by remember { mutableStateOf(property.caretakerPhone) }
+    var isOccupied by remember { mutableStateOf(property.isOccupied) }
+    var vacantUnits by remember { mutableStateOf(property.vacantUnits.toString()) }
+    var totalUnits by remember { mutableStateOf(property.totalUnits.toString()) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Edit Property & Vacancy") },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                errorMessage?.let { error ->
+                    Text(text = error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                }
+
+                OutlinedTextField(
+                    value = propertyName,
+                    onValueChange = { propertyName = it },
+                    label = { Text("Property Name") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
+                OutlinedTextField(
+                    value = location,
+                    onValueChange = { location = it },
+                    label = { Text("Location") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
+                OutlinedTextField(
+                    value = propertyType,
+                    onValueChange = { propertyType = it },
+                    label = { Text("Property Type") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
+                OutlinedTextField(
+                    value = monthlyRent,
+                    onValueChange = { monthlyRent = it },
+                    label = { Text("Monthly Rent (KSh)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
+                OutlinedTextField(
+                    value = caretakerPhone,
+                    onValueChange = { caretakerPhone = it },
+                    label = { Text("Caretaker Phone") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
+                OutlinedTextField(
+                    value = totalUnits,
+                    onValueChange = { totalUnits = it },
+                    label = { Text("Total Units") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
+                OutlinedTextField(
+                    value = vacantUnits,
+                    onValueChange = { vacantUnits = it },
+                    label = { Text("Vacant Units Amount") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Is Occupied?")
+                    Switch(
+                        checked = isOccupied,
+                        onCheckedChange = { isOccupied = it }
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val rentVal = monthlyRent.toDoubleOrNull()
+                    val totalVal = totalUnits.toIntOrNull()
+                    val vacantVal = vacantUnits.toIntOrNull()
+                    if (propertyName.isBlank()) {
+                        errorMessage = "Property name is required."
+                    } else if (rentVal == null || rentVal <= 0.0) {
+                        errorMessage = "Enter valid monthly rent."
+                    } else if (totalVal == null || totalVal < 1) {
+                        errorMessage = "Total units must be at least 1."
+                    } else if (vacantVal == null || vacantVal < 0 || vacantVal > totalVal) {
+                        errorMessage = "Invalid vacant units amount."
+                    } else {
+                        val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
+                        val currentDate = dateFormat.format(Date())
+                        val statusChanged = (property.isOccupied != isOccupied) || (property.vacantUnits != vacantVal)
+                        val lastVacant = if (statusChanged) {
+                            if (isOccupied) "Occupied (Last Vacant: $currentDate)" else "Vacant since $currentDate"
+                        } else {
+                            property.lastVacantDate
+                        }
+
+                        val updated = property.copy(
+                            propertyName = propertyName.trim(),
+                            location = location.trim(),
+                            propertyType = propertyType.trim(),
+                            monthlyRent = rentVal,
+                            caretakerPhone = caretakerPhone.trim(),
+                            isOccupied = isOccupied,
+                            totalUnits = totalVal,
+                            vacantUnits = vacantVal,
+                            lastVacantDate = lastVacant
+                        )
+                        onSave(updated)
+                        onDismiss()
+                    }
+                }
+            ) {
+                Text("Save Changes")
             }
         },
         dismissButton = {
