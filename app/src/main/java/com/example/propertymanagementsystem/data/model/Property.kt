@@ -15,7 +15,10 @@ data class Property(
     val propertyType: String,
     val monthlyRent: Double,
     val caretakerPhone: String,
-    val isOccupied: Boolean
+    val isOccupied: Boolean,
+    val lastVacantDate: String = "N/A",
+    val totalUnits: Int = 1,
+    val vacantUnits: Int = 1
 ) : Serializable {
     fun summary(): String {
         val status = if (isOccupied) "Occupied" else "Vacant"
@@ -25,6 +28,8 @@ data class Property(
             "Type: $propertyType\n" +
             "Monthly Rent: KSh $formattedRent\n" +
             "Caretaker Phone: $caretakerPhone\n" +
-            "Status: $status"
+            "Status: $status\n" +
+            "Vacant Units: $vacantUnits / $totalUnits\n" +
+            "Last Vacant: $lastVacantDate"
     }
 }

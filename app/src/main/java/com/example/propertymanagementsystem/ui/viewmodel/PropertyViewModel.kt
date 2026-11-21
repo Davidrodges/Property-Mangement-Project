@@ -78,6 +78,30 @@ class PropertyViewModel(application: Application) : AndroidViewModel(application
         phone: String,
         isOccupied: Boolean
     ): Pair<Boolean, String> {
+        return validateAndAddPropertyWithUnits(
+            name = name,
+            location = location,
+            type = type,
+            rentInput = rentInput,
+            phone = phone,
+            isOccupied = isOccupied,
+            totalUnits = 1,
+            vacantUnits = if (isOccupied) 0 else 1,
+            lastVacantDate = "N/A"
+        )
+    }
+
+    fun validateAndAddPropertyWithUnits(
+        name: String,
+        location: String,
+        type: String,
+        rentInput: String,
+        phone: String,
+        isOccupied: Boolean,
+        totalUnits: Int,
+        vacantUnits: Int,
+        lastVacantDate: String
+    ): Pair<Boolean, String> {
         val trimmedName = name.trim()
         val trimmedLocation = location.trim()
         val trimmedType = type.trim()
@@ -114,7 +138,10 @@ class PropertyViewModel(application: Application) : AndroidViewModel(application
             propertyType = trimmedType,
             monthlyRent = rent,
             caretakerPhone = trimmedPhone,
-            isOccupied = isOccupied
+            isOccupied = isOccupied,
+            totalUnits = totalUnits,
+            vacantUnits = vacantUnits,
+            lastVacantDate = lastVacantDate
         )
 
         viewModelScope.launch(Dispatchers.IO) {
