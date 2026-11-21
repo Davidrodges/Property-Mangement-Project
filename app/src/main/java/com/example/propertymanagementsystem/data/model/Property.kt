@@ -9,6 +9,7 @@ import java.util.Locale
 data class Property(
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,
+    val userEmail: String = "",
     val propertyName: String,
     val location: String,
     val propertyType: String,

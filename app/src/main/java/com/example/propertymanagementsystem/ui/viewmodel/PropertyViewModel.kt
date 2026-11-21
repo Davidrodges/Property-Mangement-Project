@@ -4,7 +4,9 @@ import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.map
+import androidx.lifecycle.switchMap
 import androidx.lifecycle.viewModelScope
 import com.example.propertymanagementsystem.data.local.PropertyDatabase
 import com.example.propertymanagementsystem.data.model.Property
@@ -16,24 +18,21 @@ import java.util.Locale
 class PropertyViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository: PropertyRepository
+    private val _currentUserEmail = MutableLiveData<String>("")
+
     val allProperties: LiveData<List<Property>>
-
-    // 1. Total property count LiveData transformation
     val propertyCountText: LiveData<String>
-
-    // 2. Occupancy summary LiveData transformation
     val occupancySummaryText: LiveData<String>
-
-    // 3. Total monthly rent expected LiveData transformation
     val totalMonthlyRentText: LiveData<String>
-
-    // 4. All properties readable summary LiveData transformation
     val allPropertiesText: LiveData<String>
 
     init {
         val dao = PropertyDatabase.getDatabase(application).propertyDao()
         repository = PropertyRepository(dao)
-        allProperties = repository.allProperties
+
+        allProperties = _currentUserEmail.switchMap { email ->
+            if (email.isBlank()) repository.allProperties else repository.getPropertiesByUser(email)
+        }
 
         propertyCountText = allProperties.map { list ->
             val count = list?.size ?: 0
@@ -63,9 +62,13 @@ class PropertyViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    fun setCurrentUser(email: String) {
+        _currentUserEmail.value = email
+    }
+
     /**
      * Validates property registration inputs and adds a new Property via Room repository if valid.
-     * Launches a coroutine on Dispatchers.IO to persist data across app restarts.
+     * Tied specifically to the currently logged-in user's email.
      */
     fun validateAndAddProperty(
         name: String,
@@ -102,8 +105,10 @@ class PropertyViewModel(application: Application) : AndroidViewModel(application
             return Pair(false, "Monthly rent must be greater than zero.")
         }
 
+        val email = _currentUserEmail.value.orEmpty()
         val newProperty = Property(
             id = 0,
+            userEmail = email,
             propertyName = trimmedName,
             location = trimmedLocation,
             propertyType = trimmedType,

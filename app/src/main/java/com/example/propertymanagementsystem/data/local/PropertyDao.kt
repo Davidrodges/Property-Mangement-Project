@@ -23,6 +23,9 @@ interface PropertyDao {
     @Query("SELECT * FROM properties ORDER BY propertyName ASC")
     fun getAllProperties(): LiveData<List<Property>>
 
+    @Query("SELECT * FROM properties WHERE userEmail = :email ORDER BY propertyName ASC")
+    fun getPropertiesByUser(email: String): LiveData<List<Property>>
+
     @Query("DELETE FROM properties")
     suspend fun deleteAllProperties()
 }

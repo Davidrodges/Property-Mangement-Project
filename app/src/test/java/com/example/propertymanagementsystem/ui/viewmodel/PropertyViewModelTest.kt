@@ -29,6 +29,7 @@ class PropertyViewModelTest {
         override suspend fun updateProperty(property: Property) {}
         override suspend fun deleteProperty(property: Property) {}
         override fun getAllProperties(): LiveData<List<Property>> = liveData
+        override fun getPropertiesByUser(email: String): LiveData<List<Property>> = liveData
         override suspend fun deleteAllProperties() {}
     }
 
@@ -57,6 +58,7 @@ class PropertyViewModelTest {
         PropertyDatabase.setTestInstance(fakeDb)
 
         viewModel = PropertyViewModel(application)
+        viewModel.setCurrentUser("test@example.com")
         viewModel.propertyCountText.observeForever {}
         viewModel.occupancySummaryText.observeForever {}
         viewModel.totalMonthlyRentText.observeForever {}
@@ -127,10 +129,10 @@ class PropertyViewModelTest {
     @Test
     fun portfolio_statistics_multiple_properties() {
         val list = listOf(
-            Property(1, "Prop 1", "Loc 1", "Res", 30000.0, "111", true),
-            Property(2, "Prop 2", "Loc 2", "Com", 45000.0, "222", true),
-            Property(3, "Prop 3", "Loc 3", "Res", 50000.0, "333", false),
-            Property(4, "Prop 4", "Loc 4", "Res", 20000.0, "444", false)
+            Property(id = 1, userEmail = "test@example.com", propertyName = "Prop 1", location = "Loc 1", propertyType = "Res", monthlyRent = 30000.0, caretakerPhone = "111", isOccupied = true),
+            Property(id = 2, userEmail = "test@example.com", propertyName = "Prop 2", location = "Loc 2", propertyType = "Com", monthlyRent = 45000.0, caretakerPhone = "222", isOccupied = true),
+            Property(id = 3, userEmail = "test@example.com", propertyName = "Prop 3", location = "Loc 3", propertyType = "Res", monthlyRent = 50000.0, caretakerPhone = "333", isOccupied = false),
+            Property(id = 4, userEmail = "test@example.com", propertyName = "Prop 4", location = "Loc 4", propertyType = "Res", monthlyRent = 20000.0, caretakerPhone = "444", isOccupied = false)
         )
         liveDataProperties.value = list
 
