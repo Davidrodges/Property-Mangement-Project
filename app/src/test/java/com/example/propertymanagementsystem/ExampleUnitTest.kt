@@ -1,4 +1,4 @@
-package com.example.propertymangement
+package com.example.propertymanagementsystem
 
 import org.junit.Test
 
