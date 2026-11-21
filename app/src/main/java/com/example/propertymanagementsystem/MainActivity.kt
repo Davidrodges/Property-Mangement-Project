@@ -37,8 +37,8 @@ class MainActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PropertyDashboardScreen(
-    viewModel: PropertyViewModel = viewModel(),
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    viewModel: PropertyViewModel = viewModel()
 ) {
     val propertyCount by viewModel.propertyCountText.observeAsState("Total Properties: 0")
     val occupancySummary by viewModel.occupancySummaryText.observeAsState("Occupied: 0 | Vacant: 0")
@@ -46,6 +46,7 @@ fun PropertyDashboardScreen(
     val allProperties by viewModel.allPropertiesText.observeAsState("No properties registered yet. Tap 'Add Property' to begin.")
 
     var feedbackMessage by remember { mutableStateOf<String?>(null) }
+    val scrollState = rememberScrollState()
 
     Scaffold(
         topBar = {
@@ -87,8 +88,9 @@ fun PropertyDashboardScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState()),
+                .consumeWindowInsets(padding)
+                .verticalScroll(scrollState)
+                .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(
@@ -174,6 +176,9 @@ fun PropertyDashboardScreen(
                     modifier = Modifier.padding(16.dp)
                 )
             }
+
+            // Bottom spacer to avoid FAB overlapping content in landscape mode
+            Spacer(modifier = Modifier.height(72.dp))
         }
     }
 }
