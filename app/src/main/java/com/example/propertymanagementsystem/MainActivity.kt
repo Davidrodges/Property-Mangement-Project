@@ -273,7 +273,7 @@ fun PropertyCard(
                 ) {
                     Icon(Icons.Default.Phone, contentDescription = "Call", modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Call Manager")
+                    Text("Call Caretaker")
                 }
 
                 OutlinedButton(
