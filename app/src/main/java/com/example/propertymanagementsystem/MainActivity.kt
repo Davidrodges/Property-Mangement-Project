@@ -55,6 +55,7 @@ fun LoginScreen(
     modifier: Modifier = Modifier
 ) {
     var isRegistering by remember { mutableStateOf(false) }
+    var showForgotPasswordDialog by remember { mutableStateOf(false) }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
@@ -177,6 +178,17 @@ fun LoginScreen(
                         singleLine = true
                     )
 
+                    if (!isRegistering) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End
+                        ) {
+                            TextButton(onClick = { showForgotPasswordDialog = true }) {
+                                Text("Forgot Password?", style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                    }
+
                     if (isRegistering) {
                         OutlinedTextField(
                             value = confirmPassword,
@@ -223,6 +235,7 @@ fun LoginScreen(
                                     confirmPassword = ""
                                 } else {
                                     val savedPass = sharedPrefs.getString("reg_pass_$trimmedEmail", null)
+                                    // If user registered an account, verify password. If not in sharedPrefs yet, allow any login or prompt.
                                     if (savedPass != null && savedPass != trimmedPassword) {
                                         errorMessage = "Incorrect password."
                                         isLoading = false
@@ -264,7 +277,119 @@ fun LoginScreen(
                 }
             }
         }
+
+        if (showForgotPasswordDialog) {
+            ForgotPasswordDialog(
+                onDismiss = { showForgotPasswordDialog = false },
+                onResetPassword = { resetEmail, newPass ->
+                    val savedPass = sharedPrefs.getString("reg_pass_$resetEmail", null)
+                    if (savedPass == null) {
+                        Pair(false, "Email address not found in registered accounts.")
+                    } else {
+                        sharedPrefs.edit()
+                            .putString("reg_pass_$resetEmail", newPass)
+                            .apply()
+                        Pair(true, "Password updated successfully! Please sign in.")
+                    }
+                }
+            )
+        }
     }
+}
+
+@Composable
+fun ForgotPasswordDialog(
+    onDismiss: () -> Unit,
+    onResetPassword: (email: String, newPass: String) -> Pair<Boolean, String>
+) {
+    var email by remember { mutableStateOf("") }
+    var newPassword by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var successMessage by remember { mutableStateOf<String?>(null) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Reset Password") },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                errorMessage?.let { error ->
+                    Text(text = error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                }
+                successMessage?.let { success ->
+                    Text(text = success, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodySmall)
+                }
+
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = { email = it },
+                    label = { Text("Registered Email") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
+                OutlinedTextField(
+                    value = newPassword,
+                    onValueChange = { newPassword = it },
+                    label = { Text("New Password (min 6 chars)") },
+                    visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
+                OutlinedTextField(
+                    value = confirmPassword,
+                    onValueChange = { confirmPassword = it },
+                    label = { Text("Confirm New Password") },
+                    visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val trimmedEmail = email.trim()
+                    val trimmedPass = newPassword.trim()
+                    if (trimmedEmail.isEmpty()) {
+                        errorMessage = "Email is required."
+                        successMessage = null
+                    } else if (!android.util.Patterns.EMAIL_ADDRESS.matcher(trimmedEmail).matches()) {
+                        errorMessage = "Enter a valid email address."
+                        successMessage = null
+                    } else if (trimmedPass.length < 6) {
+                        errorMessage = "Password must be at least 6 characters."
+                        successMessage = null
+                    } else if (trimmedPass != confirmPassword.trim()) {
+                        errorMessage = "Passwords do not match."
+                        successMessage = null
+                    } else {
+                        val result = onResetPassword(trimmedEmail, trimmedPass)
+                        if (result.first) {
+                            successMessage = result.second
+                            errorMessage = null
+                        } else {
+                            errorMessage = result.second
+                            successMessage = null
+                        }
+                    }
+                }
+            ) {
+                Text("Reset Password")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close")
+            }
+        }
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
