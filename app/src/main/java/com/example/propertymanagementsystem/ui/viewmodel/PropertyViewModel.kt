@@ -4,49 +4,68 @@ import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.map
+import androidx.lifecycle.viewModelScope
+import com.example.propertymanagementsystem.data.local.PropertyDatabase
 import com.example.propertymanagementsystem.data.model.Property
+import com.example.propertymanagementsystem.data.repository.PropertyRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.util.Locale
 
 class PropertyViewModel(application: Application) : AndroidViewModel(application) {
 
-    // Temporary in-memory implementation for Stage 2.
-    // This will be replaced by PropertyRepository with Room database integration in Stage 5.
-    private val _properties = MutableLiveData<List<Property>>(emptyList())
-    val properties: LiveData<List<Property>> get() = _properties
+    private val repository: PropertyRepository
+    val allProperties: LiveData<List<Property>>
 
     // 1. Total property count LiveData transformation
-    val propertyCountText: LiveData<String> = _properties.map { list ->
-        "Total Properties: ${list.size}"
-    }
+    val propertyCountText: LiveData<String>
 
     // 2. Occupancy summary LiveData transformation
-    val occupancySummaryText: LiveData<String> = _properties.map { list ->
-        val occupiedCount = list.count { it.isOccupied }
-        val vacantCount = list.size - occupiedCount
-        "Occupied: $occupiedCount | Vacant: $vacantCount"
-    }
+    val occupancySummaryText: LiveData<String>
 
     // 3. Total monthly rent expected LiveData transformation
-    val totalMonthlyRentText: LiveData<String> = _properties.map { list ->
-        val totalRent = list.sumOf { it.monthlyRent }
-        val formattedRent = String.format(Locale.US, "%,.2f", totalRent)
-        "Total Monthly Rent: KSh $formattedRent"
-    }
+    val totalMonthlyRentText: LiveData<String>
 
     // 4. All properties readable summary LiveData transformation
-    val allPropertiesText: LiveData<String> = _properties.map { list ->
-        if (list.isEmpty()) {
-            "No properties registered yet. Tap 'Add Property' to begin."
-        } else {
-            list.joinToString(separator = "\n\n-------------------\n\n") { it.summary() }
+    val allPropertiesText: LiveData<String>
+
+    init {
+        val dao = PropertyDatabase.getDatabase(application).propertyDao()
+        repository = PropertyRepository(dao)
+        allProperties = repository.allProperties
+
+        propertyCountText = allProperties.map { list ->
+            val count = list?.size ?: 0
+            "Total Properties: $count"
+        }
+
+        occupancySummaryText = allProperties.map { list ->
+            val safeList = list.orEmpty()
+            val occupiedCount = safeList.count { it.isOccupied }
+            val vacantCount = safeList.size - occupiedCount
+            "Occupied: $occupiedCount | Vacant: $vacantCount"
+        }
+
+        totalMonthlyRentText = allProperties.map { list ->
+            val safeList = list.orEmpty()
+            val totalRent = safeList.sumOf { it.monthlyRent }
+            val formattedRent = String.format(Locale.US, "%,.2f", totalRent)
+            "Total Monthly Rent: KSh $formattedRent"
+        }
+
+        allPropertiesText = allProperties.map { list ->
+            if (list.isNullOrEmpty()) {
+                "No properties registered yet. Tap 'Add Property' to begin."
+            } else {
+                list.joinToString(separator = "\n\n-------------------\n\n") { it.summary() }
+            }
         }
     }
 
     /**
-     * Validates property registration inputs and adds a new Property if valid.
-     * Preserves existing registered properties and updates LiveData observers automatically.
+     * Validates property registration inputs and adds a new Property via Room repository if valid.
+     * Launches a coroutine on Dispatchers.IO to persist data across app restarts.
      */
     fun validateAndAddProperty(
         name: String,
@@ -93,10 +112,23 @@ class PropertyViewModel(application: Application) : AndroidViewModel(application
             isOccupied = isOccupied
         )
 
-        val currentList = _properties.value.orEmpty()
-        _properties.value = currentList + newProperty
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.addProperty(newProperty)
+        }
 
         return Pair(true, "Property added successfully")
+    }
+
+    fun updateProperty(property: Property) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.updateProperty(property)
+        }
+    }
+
+    fun deleteProperty(property: Property) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.deleteProperty(property)
+        }
     }
 
     override fun onCleared() {
