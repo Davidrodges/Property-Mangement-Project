@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -34,14 +35,26 @@ class MainActivity : ComponentActivity() {
         setContent {
             PropertyManagementSystemTheme {
                 var isLoggedIn by remember { mutableStateOf(false) }
+                var loggedInUserEmail by remember { mutableStateOf("") }
+
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     if (!isLoggedIn) {
                         LoginScreen(
-                            onLoginSuccess = { isLoggedIn = true },
+                            onLoginSuccess = { email ->
+                                loggedInUserEmail = email
+                                isLoggedIn = true
+                            },
                             modifier = Modifier.padding(innerPadding)
                         )
                     } else {
-                        PropertyDashboardScreen(modifier = Modifier.padding(innerPadding))
+                        PropertyDashboardScreen(
+                            userEmail = loggedInUserEmail,
+                            onLogout = {
+                                isLoggedIn = false
+                                loggedInUserEmail = ""
+                            },
+                            modifier = Modifier.padding(innerPadding)
+                        )
                     }
                 }
             }
@@ -51,7 +64,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun LoginScreen(
-    onLoginSuccess: () -> Unit,
+    onLoginSuccess: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var isRegistering by remember { mutableStateOf(false) }
@@ -235,12 +248,17 @@ fun LoginScreen(
                                     confirmPassword = ""
                                 } else {
                                     val savedPass = sharedPrefs.getString("reg_pass_$trimmedEmail", null)
-                                    // If user registered an account, verify password. If not in sharedPrefs yet, allow any login or prompt.
                                     if (savedPass != null && savedPass != trimmedPassword) {
                                         errorMessage = "Incorrect password."
                                         isLoading = false
                                     } else {
-                                        onLoginSuccess()
+                                        if (savedPass == null) {
+                                            sharedPrefs.edit()
+                                                .putString("reg_email_$trimmedEmail", trimmedEmail)
+                                                .putString("reg_pass_$trimmedEmail", trimmedPassword)
+                                                .apply()
+                                        }
+                                        onLoginSuccess(trimmedEmail)
                                     }
                                 }
                             }
@@ -395,9 +413,15 @@ fun ForgotPasswordDialog(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PropertyDashboardScreen(
+    userEmail: String,
+    onLogout: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: PropertyViewModel = viewModel()
 ) {
+    LaunchedEffect(userEmail) {
+        viewModel.setCurrentUser(userEmail)
+    }
+
     val propertyCount by viewModel.propertyCountText.observeAsState("Total Properties: 0")
     val occupancySummary by viewModel.occupancySummaryText.observeAsState("Occupied: 0 | Vacant: 0")
     val totalRent by viewModel.totalMonthlyRentText.observeAsState("Total Monthly Rent: KSh 0.00")
@@ -406,16 +430,41 @@ fun PropertyDashboardScreen(
     val context = LocalContext.current
     var feedbackMessage by remember { mutableStateOf<String?>(null) }
     var showAddDialog by remember { mutableStateOf(false) }
+    var showMenu by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Property Management Portfolio") },
+                title = { Text("Portfolio (${userEmail.ifEmpty { "Guest" }})") },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                )
+                ),
+                actions = {
+                    IconButton(onClick = { showMenu = !showMenu }) {
+                        Icon(Icons.Default.MoreVert, contentDescription = "Menu")
+                    }
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Signed in as $userEmail") },
+                            onClick = { },
+                            enabled = false
+                        )
+                        HorizontalDivider()
+                        DropdownMenuItem(
+                            text = { Text("Logout") },
+                            onClick = {
+                                showMenu = false
+                                onLogout()
+                            },
+                            leadingIcon = { Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Logout") }
+                        )
+                    }
+                }
             )
         },
         floatingActionButton = {

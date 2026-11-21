@@ -37,6 +37,8 @@ class PropertyRepositoryTest {
 
         override fun getAllProperties(): LiveData<List<Property>> = liveData
 
+        override fun getPropertiesByUser(email: String): LiveData<List<Property>> = liveData
+
         override suspend fun deleteAllProperties() {
             insertedList.clear()
             liveData.value = emptyList()
@@ -54,7 +56,7 @@ class PropertyRepositoryTest {
 
     @Test
     fun addProperty_delegatesToDao() = runBlocking {
-        val property = Property(1, "Oak Villa", "Kileleshwa", "Residential", 50000.0, "0711223344", true)
+        val property = Property(id = 1, userEmail = "test@example.com", propertyName = "Oak Villa", location = "Kileleshwa", propertyType = "Residential", monthlyRent = 50000.0, caretakerPhone = "0711223344", isOccupied = true)
         repository.addProperty(property)
 
         assertEquals(1, fakeDao.insertedList.size)
@@ -63,7 +65,7 @@ class PropertyRepositoryTest {
 
     @Test
     fun updateProperty_delegatesToDao() = runBlocking {
-        val property = Property(1, "Oak Villa Updated", "Kileleshwa", "Residential", 55000.0, "0711223344", true)
+        val property = Property(id = 1, userEmail = "test@example.com", propertyName = "Oak Villa Updated", location = "Kileleshwa", propertyType = "Residential", monthlyRent = 55000.0, caretakerPhone = "0711223344", isOccupied = true)
         repository.updateProperty(property)
 
         assertEquals(1, fakeDao.updatedList.size)
@@ -72,7 +74,7 @@ class PropertyRepositoryTest {
 
     @Test
     fun deleteProperty_delegatesToDao() = runBlocking {
-        val property = Property(1, "Oak Villa", "Kileleshwa", "Residential", 50000.0, "0711223344", true)
+        val property = Property(id = 1, userEmail = "test@example.com", propertyName = "Oak Villa", location = "Kileleshwa", propertyType = "Residential", monthlyRent = 50000.0, caretakerPhone = "0711223344", isOccupied = true)
         repository.deleteProperty(property)
 
         assertEquals(1, fakeDao.deletedList.size)
@@ -86,7 +88,7 @@ class PropertyRepositoryTest {
 
         assertEquals(emptyList<Property>(), observedList)
 
-        val property = Property(1, "Palm Plaza", "Westlands", "Commercial", 120000.0, "0722334455", false)
+        val property = Property(id = 1, userEmail = "test@example.com", propertyName = "Palm Plaza", location = "Westlands", propertyType = "Commercial", monthlyRent = 120000.0, caretakerPhone = "0722334455", isOccupied = false)
         runBlocking {
             repository.addProperty(property)
         }

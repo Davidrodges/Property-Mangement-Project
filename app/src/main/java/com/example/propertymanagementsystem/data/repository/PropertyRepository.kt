@@ -8,6 +8,10 @@ class PropertyRepository(private val propertyDao: PropertyDao) {
 
     val allProperties: LiveData<List<Property>> = propertyDao.getAllProperties()
 
+    fun getPropertiesByUser(email: String): LiveData<List<Property>> {
+        return propertyDao.getPropertiesByUser(email)
+    }
+
     suspend fun addProperty(property: Property) {
         propertyDao.insertProperty(property)
     }
