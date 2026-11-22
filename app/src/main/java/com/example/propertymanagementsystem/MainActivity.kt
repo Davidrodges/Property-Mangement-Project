@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -71,6 +72,7 @@ fun LoginScreen(
 ) {
     var isRegistering by remember { mutableStateOf(false) }
     var showForgotPasswordDialog by remember { mutableStateOf(false) }
+    var showHelpDialog by remember { mutableStateOf(false) }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
@@ -294,6 +296,17 @@ fun LoginScreen(
                             text = if (isRegistering) "Already have an account? Sign In" else "New user? Register here"
                         )
                     }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                    TextButton(
+                        onClick = { showHelpDialog = true },
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                    ) {
+                        Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = "Help", modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Need Help? Contact Support")
+                    }
                 }
             }
         }
@@ -314,7 +327,100 @@ fun LoginScreen(
                 }
             )
         }
+
+        if (showHelpDialog) {
+            HelpSupportDialog(
+                onDismiss = { showHelpDialog = false },
+                onCallSupport = { phone ->
+                    val intent = Intent(Intent.ACTION_DIAL).apply {
+                        data = Uri.parse("tel:$phone")
+                    }
+                    try {
+                        context.startActivity(intent)
+                    } catch (_: Exception) { }
+                },
+                onEmailSupport = { emailAddress ->
+                    val intent = Intent(Intent.ACTION_SENDTO).apply {
+                        data = Uri.parse("mailto:$emailAddress")
+                        putExtra(Intent.EXTRA_SUBJECT, "Property Management Support Request")
+                    }
+                    try {
+                        context.startActivity(intent)
+                    } catch (_: Exception) { }
+                }
+            )
+        }
     }
+}
+
+@Composable
+fun HelpSupportDialog(
+    onDismiss: () -> Unit,
+    onCallSupport: (String) -> Unit,
+    onEmailSupport: (String) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = "Help", tint = MaterialTheme.colorScheme.primary)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Help & Support")
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "Need assistance with your account or managing your properties?",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+
+                HorizontalDivider()
+
+                Text("Common Assistance:", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                Text("• Forgotten Password: Click 'Forgot Password?' on the login screen to reset your password.", style = MaterialTheme.typography.bodySmall)
+                Text("• New User: Click 'New user? Register here' to create a new property portfolio account.", style = MaterialTheme.typography.bodySmall)
+                Text("• Technical Support: Contact our 24/7 customer care team below.", style = MaterialTheme.typography.bodySmall)
+
+                HorizontalDivider()
+
+                Text("Contact Customer Care:", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = { onCallSupport("+254700000000") },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(Icons.Default.Phone, contentDescription = "Call", modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Call Care")
+                    }
+
+                    OutlinedButton(
+                        onClick = { onEmailSupport("support@propertymanagement.co.ke") },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(Icons.Default.Email, contentDescription = "Email", modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Email Us")
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close")
+            }
+        }
+    )
 }
 
 @Composable
@@ -456,6 +562,20 @@ fun PropertyDashboardScreen(
                             text = { Text("Signed in as $userEmail") },
                             onClick = { },
                             enabled = false
+                        )
+                        HorizontalDivider()
+                        DropdownMenuItem(
+                            text = { Text("Visit Web Portal") },
+                            onClick = {
+                                showMenu = false
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/Davidrodges/Property-Mangement-Project"))
+                                try {
+                                    context.startActivity(intent)
+                                } catch (_: Exception) {
+                                    feedbackMessage = "Unable to open browser"
+                                }
+                            },
+                            leadingIcon = { Icon(Icons.Default.Language, contentDescription = "Web Portal") }
                         )
                         HorizontalDivider()
                         DropdownMenuItem(
