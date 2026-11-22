@@ -7,6 +7,9 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.*
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -29,6 +32,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.propertymanagementsystem.data.model.Property
 import com.example.propertymanagementsystem.ui.theme.PropertyManagementSystemTheme
 import com.example.propertymanagementsystem.ui.viewmodel.PropertyViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -61,6 +65,7 @@ class MainActivity : ComponentActivity() {
             ) {
                 var isLoggedIn by remember { mutableStateOf(false) }
                 var loggedInUserEmail by remember { mutableStateOf("") }
+                var isNewUserLogin by remember { mutableStateOf(false) }
 
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     if (!isLoggedIn) {
@@ -70,8 +75,9 @@ class MainActivity : ComponentActivity() {
                                 themeMode = newMode
                                 sharedPrefs.edit().putString("app_theme_mode", newMode).apply()
                             },
-                            onLoginSuccess = { email ->
+                            onLoginSuccess = { email, isNew ->
                                 loggedInUserEmail = email
+                                isNewUserLogin = isNew
                                 isLoggedIn = true
                             },
                             modifier = Modifier.padding(innerPadding)
@@ -79,6 +85,7 @@ class MainActivity : ComponentActivity() {
                     } else {
                         PropertyDashboardScreen(
                             userEmail = loggedInUserEmail,
+                            isNewUser = isNewUserLogin,
                             themeMode = themeMode,
                             onThemeModeChanged = { newMode ->
                                 themeMode = newMode
@@ -97,11 +104,21 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+fun extractFirstName(email: String): String {
+    val username = email.substringBefore("@")
+    val rawName = username.split(".", "_", "-").firstOrNull().orEmpty()
+    return if (rawName.isNotEmpty()) {
+        rawName.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+    } else {
+        "User"
+    }
+}
+
 @Composable
 fun LoginScreen(
     themeMode: String,
     onThemeModeChanged: (String) -> Unit,
-    onLoginSuccess: (String) -> Unit,
+    onLoginSuccess: (email: String, isNewUser: Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var isRegistering by remember { mutableStateOf(false) }
@@ -287,10 +304,13 @@ fun LoginScreen(
                                 errorMessage = null
                                 isLoading = true
 
+                                val isReturning = sharedPrefs.getBoolean("is_returning_$trimmedEmail", false)
+
                                 if (isRegistering) {
                                     sharedPrefs.edit()
                                         .putString("reg_email_$trimmedEmail", trimmedEmail)
                                         .putString("reg_pass_$trimmedEmail", trimmedPassword)
+                                        .putBoolean("is_returning_$trimmedEmail", false)
                                         .apply()
                                     successMessage = "Account registered successfully! You can now sign in."
                                     isLoading = false
@@ -309,7 +329,9 @@ fun LoginScreen(
                                                 .putString("reg_pass_$trimmedEmail", trimmedPassword)
                                                 .apply()
                                         }
-                                        onLoginSuccess(trimmedEmail)
+                                        val isNew = !isReturning
+                                        sharedPrefs.edit().putBoolean("is_returning_$trimmedEmail", true).apply()
+                                        onLoginSuccess(trimmedEmail, isNew)
                                     }
                                 }
                             }
@@ -642,6 +664,7 @@ fun ForgotPasswordDialog(
 @Composable
 fun PropertyDashboardScreen(
     userEmail: String,
+    isNewUser: Boolean,
     themeMode: String,
     onThemeModeChanged: (String) -> Unit,
     onLogout: () -> Unit,
@@ -652,6 +675,7 @@ fun PropertyDashboardScreen(
         viewModel.setCurrentUser(userEmail)
     }
 
+    val firstName = remember(userEmail) { extractFirstName(userEmail) }
     val propertyCount by viewModel.propertyCountText.observeAsState("Total Properties: 0")
     val occupancySummary by viewModel.occupancySummaryText.observeAsState("Occupied: 0 | Vacant: 0")
     val totalRent by viewModel.totalMonthlyRentText.observeAsState("Total Monthly Rent: KSh 0.00")
@@ -663,6 +687,27 @@ fun PropertyDashboardScreen(
     var showThemeDialog by remember { mutableStateOf(false) }
     var propertyToEdit by remember { mutableStateOf<Property?>(null) }
     var showMenu by remember { mutableStateOf(false) }
+    var showWelcomeBanner by remember { mutableStateOf(true) }
+
+    // Disappear returning user welcome message after 30 seconds
+    if (!isNewUser) {
+        LaunchedEffect(Unit) {
+            delay(30000)
+            showWelcomeBanner = false
+        }
+    }
+
+    // Glowing animation for returning user welcome text
+    val infiniteTransition = rememberInfiniteTransition(label = "glowTransition")
+    val glowAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.35f,
+        targetValue = 1.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "glowAlpha"
+    )
 
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val coroutineScope = rememberCoroutineScope()
@@ -686,7 +731,13 @@ fun PropertyDashboardScreen(
                         modifier = Modifier.padding(vertical = 12.dp)
                     )
                     Text(
-                        text = "User: $userEmail",
+                        text = "Welcome, $firstName",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = userEmail,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -787,7 +838,7 @@ fun PropertyDashboardScreen(
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text("Portfolio (${userEmail.ifEmpty { "Guest" }})") },
+                    title = { Text("Portfolio ($firstName)") },
                     navigationIcon = {
                         IconButton(onClick = { coroutineScope.launch { drawerState.open() } }) {
                             Icon(Icons.Default.Menu, contentDescription = "Open Navigation Menu")
@@ -812,7 +863,7 @@ fun PropertyDashboardScreen(
                             onDismissRequest = { showMenu = false }
                         ) {
                             DropdownMenuItem(
-                                text = { Text("Signed in as $userEmail") },
+                                text = { Text("Signed in as $firstName ($userEmail)") },
                                 onClick = { },
                                 enabled = false
                             )
@@ -875,6 +926,54 @@ fun PropertyDashboardScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                // Animated Welcome Banner
+                AnimatedVisibility(
+                    visible = showWelcomeBanner,
+                    exit = fadeOut()
+                ) {
+                    if (isNewUser) {
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "🎉 Welcome $firstName!",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onTertiaryContainer
+                                )
+                            }
+                        }
+                    } else {
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = glowAlpha)
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "✨ Welcome back $firstName! ✨",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    }
+                }
+
                 Text(
                     text = "Portfolio Statistics",
                     style = MaterialTheme.typography.titleLarge,
