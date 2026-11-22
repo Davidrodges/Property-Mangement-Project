@@ -74,8 +74,8 @@ class PropertyViewModel(application: Application) : AndroidViewModel(application
     }
 
     /**
-     * Validates property registration inputs and adds a new Property via Room repository if valid.
-     * Tied specifically to the currently logged-in user's email.
+     * Validates property registration inputs against blank fields, invalid numbers, and negative rent.
+     * Provides clear user error feedback on invalid entries.
      */
     fun validateAndAddProperty(
         name: String,
