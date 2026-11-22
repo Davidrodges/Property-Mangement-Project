@@ -1,11 +1,13 @@
 package com.example.propertymanagementsystem
 
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -37,13 +39,37 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            PropertyManagementSystemTheme {
+            val context = LocalContext.current
+            val sharedPrefs = remember {
+                context.getSharedPreferences("property_app_settings", Context.MODE_PRIVATE)
+            }
+
+            var themeMode by remember {
+                mutableStateOf(sharedPrefs.getString("app_theme_mode", "SYSTEM") ?: "SYSTEM")
+            }
+
+            val isSystemDark = isSystemInDarkTheme()
+            val useDarkTheme = when (themeMode) {
+                "LIGHT" -> false
+                "DARK" -> true
+                else -> isSystemDark
+            }
+
+            PropertyManagementSystemTheme(
+                darkTheme = useDarkTheme,
+                dynamicColor = (themeMode == "SYSTEM")
+            ) {
                 var isLoggedIn by remember { mutableStateOf(false) }
                 var loggedInUserEmail by remember { mutableStateOf("") }
 
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     if (!isLoggedIn) {
                         LoginScreen(
+                            themeMode = themeMode,
+                            onThemeModeChanged = { newMode ->
+                                themeMode = newMode
+                                sharedPrefs.edit().putString("app_theme_mode", newMode).apply()
+                            },
                             onLoginSuccess = { email ->
                                 loggedInUserEmail = email
                                 isLoggedIn = true
@@ -53,6 +79,11 @@ class MainActivity : ComponentActivity() {
                     } else {
                         PropertyDashboardScreen(
                             userEmail = loggedInUserEmail,
+                            themeMode = themeMode,
+                            onThemeModeChanged = { newMode ->
+                                themeMode = newMode
+                                sharedPrefs.edit().putString("app_theme_mode", newMode).apply()
+                            },
                             onLogout = {
                                 isLoggedIn = false
                                 loggedInUserEmail = ""
@@ -68,12 +99,15 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun LoginScreen(
+    themeMode: String,
+    onThemeModeChanged: (String) -> Unit,
     onLoginSuccess: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var isRegistering by remember { mutableStateOf(false) }
     var showForgotPasswordDialog by remember { mutableStateOf(false) }
     var showHelpDialog by remember { mutableStateOf(false) }
+    var showThemeDialog by remember { mutableStateOf(false) }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
@@ -84,7 +118,7 @@ fun LoginScreen(
 
     val context = LocalContext.current
     val sharedPrefs = remember {
-        context.getSharedPreferences("property_auth_prefs", android.content.Context.MODE_PRIVATE)
+        context.getSharedPreferences("property_auth_prefs", Context.MODE_PRIVATE)
     }
 
     Surface(
@@ -99,6 +133,18 @@ fun LoginScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                IconButton(onClick = { showThemeDialog = true }) {
+                    Icon(
+                        imageVector = if (themeMode == "DARK") Icons.Default.DarkMode else Icons.Default.LightMode,
+                        contentDescription = "Change Theme"
+                    )
+                }
+            }
+
             Surface(
                 shape = MaterialTheme.shapes.extraLarge,
                 color = MaterialTheme.colorScheme.primaryContainer,
@@ -312,6 +358,17 @@ fun LoginScreen(
             }
         }
 
+        if (showThemeDialog) {
+            ThemeSelectionDialog(
+                currentTheme = themeMode,
+                onDismiss = { showThemeDialog = false },
+                onSelectTheme = { selected ->
+                    onThemeModeChanged(selected)
+                    showThemeDialog = false
+                }
+            )
+        }
+
         if (showForgotPasswordDialog) {
             ForgotPasswordDialog(
                 onDismiss = { showForgotPasswordDialog = false },
@@ -352,6 +409,68 @@ fun LoginScreen(
             )
         }
     }
+}
+
+@Composable
+fun ThemeSelectionDialog(
+    currentTheme: String,
+    onDismiss: () -> Unit,
+    onSelectTheme: (String) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Select App Theme") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(
+                        selected = (currentTheme == "LIGHT"),
+                        onClick = { onSelectTheme("LIGHT") }
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("☀️ Light Mode")
+                }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(
+                        selected = (currentTheme == "DARK"),
+                        onClick = { onSelectTheme("DARK") }
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("🌙 Dark Mode")
+                }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(
+                        selected = (currentTheme == "SYSTEM"),
+                        onClick = { onSelectTheme("SYSTEM") }
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("📱 System Default")
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close")
+            }
+        }
+    )
 }
 
 @Composable
@@ -523,6 +642,8 @@ fun ForgotPasswordDialog(
 @Composable
 fun PropertyDashboardScreen(
     userEmail: String,
+    themeMode: String,
+    onThemeModeChanged: (String) -> Unit,
     onLogout: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: PropertyViewModel = viewModel()
@@ -539,6 +660,7 @@ fun PropertyDashboardScreen(
     val context = LocalContext.current
     var feedbackMessage by remember { mutableStateOf<String?>(null) }
     var showAddDialog by remember { mutableStateOf(false) }
+    var showThemeDialog by remember { mutableStateOf(false) }
     var propertyToEdit by remember { mutableStateOf<Property?>(null) }
     var showMenu by remember { mutableStateOf(false) }
 
@@ -615,6 +737,22 @@ fun PropertyDashboardScreen(
                     )
 
                     NavigationDrawerItem(
+                        label = { Text("App Theme") },
+                        selected = false,
+                        onClick = {
+                            coroutineScope.launch { drawerState.close() }
+                            showThemeDialog = true
+                        },
+                        icon = {
+                            Icon(
+                                imageVector = if (themeMode == "DARK") Icons.Default.DarkMode else Icons.Default.LightMode,
+                                contentDescription = "Theme"
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    NavigationDrawerItem(
                         label = { Text("Web Portal") },
                         selected = false,
                         onClick = {
@@ -660,6 +798,12 @@ fun PropertyDashboardScreen(
                         titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
                     ),
                     actions = {
+                        IconButton(onClick = { showThemeDialog = true }) {
+                            Icon(
+                                imageVector = if (themeMode == "DARK") Icons.Default.DarkMode else Icons.Default.LightMode,
+                                contentDescription = "Theme"
+                            )
+                        }
                         IconButton(onClick = { showMenu = !showMenu }) {
                             Icon(Icons.Default.MoreVert, contentDescription = "Menu")
                         }
@@ -671,6 +815,20 @@ fun PropertyDashboardScreen(
                                 text = { Text("Signed in as $userEmail") },
                                 onClick = { },
                                 enabled = false
+                            )
+                            HorizontalDivider()
+                            DropdownMenuItem(
+                                text = { Text("App Theme Settings") },
+                                onClick = {
+                                    showMenu = false
+                                    showThemeDialog = true
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = if (themeMode == "DARK") Icons.Default.DarkMode else Icons.Default.LightMode,
+                                        contentDescription = "Theme"
+                                    )
+                                }
                             )
                             HorizontalDivider()
                             DropdownMenuItem(
@@ -858,6 +1016,17 @@ fun PropertyDashboardScreen(
                             feedbackMessage = result.second
                         }
                         result
+                    }
+                )
+            }
+
+            if (showThemeDialog) {
+                ThemeSelectionDialog(
+                    currentTheme = themeMode,
+                    onDismiss = { showThemeDialog = false },
+                    onSelectTheme = { selected ->
+                        onThemeModeChanged(selected)
+                        showThemeDialog = false
                     }
                 )
             }
