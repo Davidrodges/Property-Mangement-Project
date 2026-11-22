@@ -27,6 +27,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.propertymanagementsystem.data.model.Property
 import com.example.propertymanagementsystem.ui.theme.PropertyManagementSystemTheme
 import com.example.propertymanagementsystem.ui.viewmodel.PropertyViewModel
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -540,228 +541,337 @@ fun PropertyDashboardScreen(
     var showAddDialog by remember { mutableStateOf(false) }
     var propertyToEdit by remember { mutableStateOf<Property?>(null) }
     var showMenu by remember { mutableStateOf(false) }
+
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val coroutineScope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Portfolio (${userEmail.ifEmpty { "Guest" }})") },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                ),
-                actions = {
-                    IconButton(onClick = { showMenu = !showMenu }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "Menu")
-                    }
-                    DropdownMenu(
-                        expanded = showMenu,
-                        onDismissRequest = { showMenu = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("Signed in as $userEmail") },
-                            onClick = { },
-                            enabled = false
-                        )
-                        HorizontalDivider()
-                        DropdownMenuItem(
-                            text = { Text("Visit Web Portal") },
-                            onClick = {
-                                showMenu = false
-                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/Davidrodges/Property-Mangement-Project"))
-                                try {
-                                    context.startActivity(intent)
-                                } catch (_: Exception) {
-                                    feedbackMessage = "Unable to open browser"
-                                }
-                            },
-                            leadingIcon = { Icon(Icons.Default.Language, contentDescription = "Web Portal") }
-                        )
-                        HorizontalDivider()
-                        DropdownMenuItem(
-                            text = { Text("Logout") },
-                            onClick = {
-                                showMenu = false
-                                onLogout()
-                            },
-                            leadingIcon = { Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Logout") }
-                        )
-                    }
-                }
-            )
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = { showAddDialog = true }
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Property")
-            }
-        },
-        modifier = modifier
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .consumeWindowInsets(padding)
-                .verticalScroll(scrollState)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Text(
-                text = "Portfolio Statistics",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-
-            // Statistics Cards
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Card(
-                    modifier = Modifier.weight(1f),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Text(text = "Count", style = MaterialTheme.typography.labelMedium)
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(text = propertyCount, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
-                    }
-                }
-
-                Card(
-                    modifier = Modifier.weight(1f),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Text(text = "Occupancy", style = MaterialTheme.typography.labelMedium)
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(text = occupancySummary, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(text = "Financial Overview", style = MaterialTheme.typography.labelLarge)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(text = totalRent, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                }
-            }
-
-            feedbackMessage?.let { msg ->
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(text = msg, style = MaterialTheme.typography.bodyMedium)
-                        TextButton(onClick = { feedbackMessage = null }) {
-                            Text("Dismiss")
-                        }
-                    }
-                }
-            }
-
-            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-
-            Text(
-                text = "Registered Properties",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-
-            if (properties.isEmpty()) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            ModalDrawerSheet {
+                Column(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .width(280.dp)
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        text = "No properties registered yet. Tap 'Add Property' to begin.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(16.dp)
+                        text = "Navigation Menu",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(vertical = 12.dp)
                     )
-                }
-            } else {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    properties.forEach { property ->
-                        PropertyCard(
-                            property = property,
-                            onCallCaretaker = { phone ->
-                                val intent = Intent(Intent.ACTION_DIAL).apply {
-                                    data = Uri.parse("tel:$phone")
-                                }
+                    Text(
+                        text = "User: $userEmail",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                    NavigationDrawerItem(
+                        label = { Text("Dashboard") },
+                        selected = false,
+                        onClick = {
+                            coroutineScope.launch { drawerState.close() }
+                            coroutineScope.launch { scrollState.animateScrollTo(0) }
+                        },
+                        icon = { Icon(Icons.Default.Dashboard, contentDescription = "Dashboard") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    NavigationDrawerItem(
+                        label = { Text("Add Property") },
+                        selected = false,
+                        onClick = {
+                            coroutineScope.launch { drawerState.close() }
+                            showAddDialog = true
+                        },
+                        icon = { Icon(Icons.Default.Add, contentDescription = "Add Property") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    NavigationDrawerItem(
+                        label = { Text("Call Caretaker") },
+                        selected = false,
+                        onClick = {
+                            coroutineScope.launch { drawerState.close() }
+                            if (properties.isNotEmpty()) {
+                                val firstPhone = properties.first().caretakerPhone
+                                val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$firstPhone"))
                                 try {
                                     context.startActivity(intent)
                                 } catch (_: Exception) {
                                     feedbackMessage = "Unable to launch dialer"
                                 }
-                            },
-                            onEdit = {
-                                propertyToEdit = property
-                            },
-                            onDelete = {
-                                viewModel.deleteProperty(property)
-                                feedbackMessage = "Property deleted successfully"
+                            } else {
+                                feedbackMessage = "No registered properties available to call caretaker."
                             }
-                        )
-                    }
+                        },
+                        icon = { Icon(Icons.Default.Phone, contentDescription = "Call Caretaker") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    NavigationDrawerItem(
+                        label = { Text("Web Portal") },
+                        selected = false,
+                        onClick = {
+                            coroutineScope.launch { drawerState.close() }
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/Davidrodges/Property-Mangement-Project"))
+                            try {
+                                context.startActivity(intent)
+                            } catch (_: Exception) {
+                                feedbackMessage = "Unable to open browser"
+                            }
+                        },
+                        icon = { Icon(Icons.Default.Language, contentDescription = "Web Portal") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                    NavigationDrawerItem(
+                        label = { Text("Logout") },
+                        selected = false,
+                        onClick = {
+                            coroutineScope.launch { drawerState.close() }
+                            onLogout()
+                        },
+                        icon = { Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Logout") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             }
-
-            // Bottom spacer to avoid FAB overlapping content in landscape mode
-            Spacer(modifier = Modifier.height(72.dp))
         }
-
-        if (showAddDialog) {
-            AddPropertyDialog(
-                onDismiss = { showAddDialog = false },
-                onAddProperty = { name, location, type, rent, phone, isOccupied, totalUnits, vacantUnits ->
-                    val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
-                    val currentDate = dateFormat.format(Date())
-                    val lastVacant = if (isOccupied) "Occupied (Last Vacant: $currentDate)" else "Vacant since $currentDate"
-
-                    val result = viewModel.validateAndAddPropertyWithUnits(
-                        name = name,
-                        location = location,
-                        type = type,
-                        rentInput = rent,
-                        phone = phone,
-                        isOccupied = isOccupied,
-                        totalUnits = totalUnits,
-                        vacantUnits = vacantUnits,
-                        lastVacantDate = lastVacant
-                    )
-                    if (result.first) {
-                        feedbackMessage = result.second
+    ) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text("Portfolio (${userEmail.ifEmpty { "Guest" }})") },
+                    navigationIcon = {
+                        IconButton(onClick = { coroutineScope.launch { drawerState.open() } }) {
+                            Icon(Icons.Default.Menu, contentDescription = "Open Navigation Menu")
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    ),
+                    actions = {
+                        IconButton(onClick = { showMenu = !showMenu }) {
+                            Icon(Icons.Default.MoreVert, contentDescription = "Menu")
+                        }
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Signed in as $userEmail") },
+                                onClick = { },
+                                enabled = false
+                            )
+                            HorizontalDivider()
+                            DropdownMenuItem(
+                                text = { Text("Visit Web Portal") },
+                                onClick = {
+                                    showMenu = false
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/Davidrodges/Property-Mangement-Project"))
+                                    try {
+                                        context.startActivity(intent)
+                                    } catch (_: Exception) {
+                                        feedbackMessage = "Unable to open browser"
+                                    }
+                                },
+                                leadingIcon = { Icon(Icons.Default.Language, contentDescription = "Web Portal") }
+                            )
+                            HorizontalDivider()
+                            DropdownMenuItem(
+                                text = { Text("Logout") },
+                                onClick = {
+                                    showMenu = false
+                                    onLogout()
+                                },
+                                leadingIcon = { Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Logout") }
+                            )
+                        }
                     }
-                    result
+                )
+            },
+            floatingActionButton = {
+                FloatingActionButton(
+                    onClick = { showAddDialog = true }
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Add Property")
                 }
-            )
-        }
+            },
+            modifier = modifier
+        ) { padding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .consumeWindowInsets(padding)
+                    .verticalScroll(scrollState)
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = "Portfolio Statistics",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
 
-        propertyToEdit?.let { prop ->
-            EditPropertyDialog(
-                property = prop,
-                onDismiss = { propertyToEdit = null },
-                onSave = { updatedProperty ->
-                    viewModel.updateProperty(updatedProperty)
-                    feedbackMessage = "Property updated successfully"
+                // Statistics Cards
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Card(
+                        modifier = Modifier.weight(1f),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text(text = "Count", style = MaterialTheme.typography.labelMedium)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(text = propertyCount, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    Card(
+                        modifier = Modifier.weight(1f),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text(text = "Occupancy", style = MaterialTheme.typography.labelMedium)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(text = occupancySummary, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                        }
+                    }
                 }
-            )
+
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(text = "Financial Overview", style = MaterialTheme.typography.labelLarge)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(text = totalRent, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                feedbackMessage?.let { msg ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(text = msg, style = MaterialTheme.typography.bodyMedium)
+                            TextButton(onClick = { feedbackMessage = null }) {
+                                Text("Dismiss")
+                            }
+                        }
+                    }
+                }
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                Text(
+                    text = "Registered Properties",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+
+                if (properties.isEmpty()) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                    ) {
+                        Text(
+                            text = "No properties registered yet. Tap 'Add Property' to begin.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(16.dp)
+                        )
+                    }
+                } else {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        properties.forEach { property ->
+                            PropertyCard(
+                                property = property,
+                                onCallCaretaker = { phone ->
+                                    val intent = Intent(Intent.ACTION_DIAL).apply {
+                                        data = Uri.parse("tel:$phone")
+                                    }
+                                    try {
+                                        context.startActivity(intent)
+                                    } catch (_: Exception) {
+                                        feedbackMessage = "Unable to launch dialer"
+                                    }
+                                },
+                                onEdit = {
+                                    propertyToEdit = property
+                                },
+                                onDelete = {
+                                    viewModel.deleteProperty(property)
+                                    feedbackMessage = "Property deleted successfully"
+                                }
+                            )
+                        }
+                    }
+                }
+
+                // Bottom spacer to avoid FAB overlapping content in landscape mode
+                Spacer(modifier = Modifier.height(72.dp))
+            }
+
+            if (showAddDialog) {
+                AddPropertyDialog(
+                    onDismiss = { showAddDialog = false },
+                    onAddProperty = { name, location, type, rent, phone, isOccupied, totalUnits, vacantUnits ->
+                        val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
+                        val currentDate = dateFormat.format(Date())
+                        val lastVacant = if (isOccupied) "Occupied (Last Vacant: $currentDate)" else "Vacant since $currentDate"
+
+                        val result = viewModel.validateAndAddPropertyWithUnits(
+                            name = name,
+                            location = location,
+                            type = type,
+                            rentInput = rent,
+                            phone = phone,
+                            isOccupied = isOccupied,
+                            totalUnits = totalUnits,
+                            vacantUnits = vacantUnits,
+                            lastVacantDate = lastVacant
+                        )
+                        if (result.first) {
+                            feedbackMessage = result.second
+                        }
+                        result
+                    }
+                )
+            }
+
+            propertyToEdit?.let { prop ->
+                EditPropertyDialog(
+                    property = prop,
+                    onDismiss = { propertyToEdit = null },
+                    onSave = { updatedProperty ->
+                        viewModel.updateProperty(updatedProperty)
+                        feedbackMessage = "Property updated successfully"
+                    }
+                )
+            }
         }
     }
 }
