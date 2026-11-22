@@ -1,3 +1,11 @@
 <resources>
-    <string name="app_name">PropertyManagementSystem</string>
+    <string name="app_name">Property Management System</string>
+    <string name="error_property_name_required">Property name is required.</string>
+    <string name="error_property_location_required">Property location is required.</string>
+    <string name="error_property_type_required">Property type is required.</string>
+    <string name="error_caretaker_phone_required">Caretaker phone number is required.</string>
+    <string name="error_invalid_rent">Enter a valid monthly rent.</string>
+    <string name="error_rent_greater_than_zero">Monthly rent must be greater than zero.</string>
+    <string name="property_added_successfully">Property added successfully</string>
+    <string name="no_properties_registered">No properties registered yet. Tap \'Add Property\' to begin.</string>
 </resources>
