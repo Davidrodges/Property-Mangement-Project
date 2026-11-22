@@ -685,6 +685,7 @@ fun PropertyDashboardScreen(
     var feedbackMessage by remember { mutableStateOf<String?>(null) }
     var showAddDialog by remember { mutableStateOf(false) }
     var showThemeDialog by remember { mutableStateOf(false) }
+    var showCaretakerDirectory by remember { mutableStateOf(false) }
     var propertyToEdit by remember { mutableStateOf<Property?>(null) }
     var showMenu by remember { mutableStateOf(false) }
     var showWelcomeBanner by remember { mutableStateOf(true) }
@@ -771,17 +772,7 @@ fun PropertyDashboardScreen(
                         selected = false,
                         onClick = {
                             coroutineScope.launch { drawerState.close() }
-                            if (properties.isNotEmpty()) {
-                                val firstPhone = properties.first().caretakerPhone
-                                val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$firstPhone"))
-                                try {
-                                    context.startActivity(intent)
-                                } catch (_: Exception) {
-                                    feedbackMessage = "Unable to launch dialer"
-                                }
-                            } else {
-                                feedbackMessage = "No registered properties available to call caretaker."
-                            }
+                            showCaretakerDirectory = true
                         },
                         icon = { Icon(Icons.Default.Phone, contentDescription = "Call Caretaker") },
                         modifier = Modifier.fillMaxWidth()
@@ -883,6 +874,15 @@ fun PropertyDashboardScreen(
                             )
                             HorizontalDivider()
                             DropdownMenuItem(
+                                text = { Text("Call Caretaker Directory") },
+                                onClick = {
+                                    showMenu = false
+                                    showCaretakerDirectory = true
+                                },
+                                leadingIcon = { Icon(Icons.Default.Phone, contentDescription = "Call Caretaker") }
+                            )
+                            HorizontalDivider()
+                            DropdownMenuItem(
                                 text = { Text("Visit Web Portal") },
                                 onClick = {
                                     showMenu = false
@@ -926,7 +926,7 @@ fun PropertyDashboardScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Animated Welcome Banner
+                // Animated Welcome Banner without emojis
                 AnimatedVisibility(
                     visible = showWelcomeBanner,
                     exit = fadeOut()
@@ -943,7 +943,7 @@ fun PropertyDashboardScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "🎉 Welcome $firstName!",
+                                    text = "Welcome $firstName!",
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onTertiaryContainer
@@ -964,7 +964,7 @@ fun PropertyDashboardScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "✨ Welcome back $firstName! ✨",
+                                    text = "Welcome back $firstName!",
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.ExtraBold,
                                     color = MaterialTheme.colorScheme.primary
@@ -1119,6 +1119,23 @@ fun PropertyDashboardScreen(
                 )
             }
 
+            if (showCaretakerDirectory) {
+                CaretakerDirectoryDialog(
+                    properties = properties,
+                    onDismiss = { showCaretakerDirectory = false },
+                    onCallCaretaker = { phone ->
+                        val intent = Intent(Intent.ACTION_DIAL).apply {
+                            data = Uri.parse("tel:$phone")
+                        }
+                        try {
+                            context.startActivity(intent)
+                        } catch (_: Exception) {
+                            feedbackMessage = "Unable to launch dialer"
+                        }
+                    }
+                )
+            }
+
             if (showThemeDialog) {
                 ThemeSelectionDialog(
                     currentTheme = themeMode,
@@ -1142,6 +1159,91 @@ fun PropertyDashboardScreen(
             }
         }
     }
+}
+
+@Composable
+fun CaretakerDirectoryDialog(
+    properties: List<Property>,
+    onDismiss: () -> Unit,
+    onCallCaretaker: (String) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Phone, contentDescription = "Caretakers", tint = MaterialTheme.colorScheme.primary)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Caretaker Directory")
+            }
+        },
+        text = {
+            if (properties.isEmpty()) {
+                Text(
+                    text = "No registered properties or caretakers found. Add a property to list caretakers.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = "Select a caretaker to call based on their building:",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    properties.forEach { property ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = property.propertyName,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = "Location: ${property.location}",
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                    Text(
+                                        text = "Phone: ${property.caretakerPhone}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+
+                                Button(
+                                    onClick = { onCallCaretaker(property.caretakerPhone) },
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                ) {
+                                    Icon(Icons.Default.Phone, contentDescription = "Call", modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Call")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close")
+            }
+        }
+    )
 }
 
 @Composable
