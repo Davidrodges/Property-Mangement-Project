@@ -5,6 +5,10 @@ import androidx.room.PrimaryKey
 import java.io.Serializable
 import java.util.Locale
 
+/**
+ * Entity data class representing a real estate property in the local Room database.
+ * Holds details such as ownership (userEmail), property name, location, type, rent, and occupancy statistics.
+ */
 @Entity(tableName = "properties")
 data class Property(
     @PrimaryKey(autoGenerate = true)
@@ -20,6 +24,9 @@ data class Property(
     val totalUnits: Int = 1,
     val vacantUnits: Int = 1
 ) : Serializable {
+    /**
+     * Returns a formatted multiline summary string of the property details for UI display.
+     */
     fun summary(): String {
         val status = if (isOccupied) "Occupied" else "Vacant"
         val formattedRent = String.format(Locale.US, "%,.2f", monthlyRent)
