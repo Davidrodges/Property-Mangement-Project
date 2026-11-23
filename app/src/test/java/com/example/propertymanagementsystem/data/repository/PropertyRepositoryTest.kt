@@ -11,6 +11,9 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 
+/**
+ * Unit tests for [PropertyRepository] and simulated DAO operations.
+ */
 class PropertyRepositoryTest {
 
     @get:Rule
@@ -29,15 +32,21 @@ class PropertyRepositoryTest {
 
         override suspend fun updateProperty(property: Property) {
             updatedList.add(property)
+            liveData.value = liveData.value.orEmpty().map { if (it.id == property.id) property else it }
         }
 
         override suspend fun deleteProperty(property: Property) {
             deletedList.add(property)
+            liveData.value = liveData.value.orEmpty().filter { it.id != property.id }
         }
 
         override fun getAllProperties(): LiveData<List<Property>> = liveData
 
-        override fun getPropertiesByUser(email: String): LiveData<List<Property>> = liveData
+        override fun getPropertiesByUser(email: String): LiveData<List<Property>> {
+            val filteredLiveData = MutableLiveData<List<Property>>()
+            filteredLiveData.value = liveData.value.orEmpty().filter { it.userEmail == email }
+            return filteredLiveData
+        }
 
         override suspend fun deleteAllProperties() {
             insertedList.clear()
