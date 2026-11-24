@@ -89,7 +89,7 @@ com.example.propertymanagementsystem
 
 ---
 
-## ✨ Features
+## ✨ Features.
 
 - **Property Registration**: Add new residential and commercial properties with name, location, type, monthly rent, caretaker contact, and occupancy status.
 - **Real-Time Portfolio Statistics**:
@@ -141,9 +141,9 @@ To view, inspect, and query the underlying SQLite database live while the app is
 
 | Team Member | Role | Key Contributions |
 | :--- | :--- | :--- |
-| **David Rodgers** | Project Lead, Auth, Navigation & Release | Led project architecture setup, authentication flow design, navigation routing, and release engineering. |
+| **Owen Kalanja** | Project Lead, Auth, Navigation & Release | Led project architecture setup, authentication flow design, navigation routing, and release engineering. |
 | **Adam Jerry** | Room Database Layer | Architected the Room SQLite persistence layer including `Property` entity schema, `PropertyDao`, and `PropertyDatabase` singleton. |
-| **Owen Karanja** | ViewModel & LiveData Logic | Designed `PropertyViewModel`, business validation rules, and reactive LiveData transformations (`propertyCountText`, `occupancySummaryText`, `totalMonthlyRentText`, `allPropertiesText`). |
+| **David Rodgers** | ViewModel & LiveData Logic | Designed `PropertyViewModel`, business validation rules, and reactive LiveData transformations (`propertyCountText`, `occupancySummaryText`, `totalMonthlyRentText`, `allPropertiesText`). |
 | **Grace Ngechu** | UI Fragments & Data Binding | Built responsive Jetpack Compose Material 3 UI screens, form components, dynamic data binding, and feedback notification UI. |
 | **Lovine Muema** | Repository, Coroutine Persistence & Documentation | Built `PropertyRepository`, integrated Kotlin Coroutines (`viewModelScope`, `Dispatchers.IO`) for background database persistence, and compiled technical documentation (`README.md`). |
 
