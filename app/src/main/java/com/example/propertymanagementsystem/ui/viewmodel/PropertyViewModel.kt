@@ -74,6 +74,7 @@ class PropertyViewModel(application: Application) : AndroidViewModel(application
         phone: String,
         isOccupied: Boolean
     ): Pair<Boolean, String> {
+        val vacant = if (isOccupied) 0 else 1
         return validateAndAddPropertyWithUnits(
             name = name,
             location = location,
@@ -82,7 +83,7 @@ class PropertyViewModel(application: Application) : AndroidViewModel(application
             phone = phone,
             isOccupied = isOccupied,
             totalUnits = 1,
-            vacantUnits = if (isOccupied) 0 else 1,
+            vacantUnits = vacant,
             lastVacantDate = "N/A"
         )
     }
@@ -125,7 +126,7 @@ class PropertyViewModel(application: Application) : AndroidViewModel(application
             return Pair(false, "Monthly rent must be greater than zero.")
         }
 
-        // Automatic occupancy logic: if vacantUnits == 0, fully occupied (true), else respect input/isOccupied
+        // Automatic occupancy logic: if vacantUnits == 0, fully occupied (isOccupied = true)
         val autoIsOccupied = if (vacantUnits == 0) true else isOccupied
 
         val email = _currentUserEmail.value.orEmpty()

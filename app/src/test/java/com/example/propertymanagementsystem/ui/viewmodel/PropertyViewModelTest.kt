@@ -129,10 +129,10 @@ class PropertyViewModelTest {
     @Test
     fun portfolio_statistics_multiple_properties() {
         val list = listOf(
-            Property(id = 1, userEmail = "test@example.com", propertyName = "Prop 1", location = "Loc 1", propertyType = "Res", monthlyRent = 30000.0, caretakerPhone = "111", isOccupied = true),
-            Property(id = 2, userEmail = "test@example.com", propertyName = "Prop 2", location = "Loc 2", propertyType = "Com", monthlyRent = 45000.0, caretakerPhone = "222", isOccupied = true),
-            Property(id = 3, userEmail = "test@example.com", propertyName = "Prop 3", location = "Loc 3", propertyType = "Res", monthlyRent = 50000.0, caretakerPhone = "333", isOccupied = false),
-            Property(id = 4, userEmail = "test@example.com", propertyName = "Prop 4", location = "Loc 4", propertyType = "Res", monthlyRent = 20000.0, caretakerPhone = "444", isOccupied = false)
+            Property(id = 1, userEmail = "test@example.com", propertyName = "Prop 1", location = "Loc 1", propertyType = "Res", monthlyRent = 30000.0, caretakerPhone = "111", isOccupied = true, vacantUnits = 0),
+            Property(id = 2, userEmail = "test@example.com", propertyName = "Prop 2", location = "Loc 2", propertyType = "Com", monthlyRent = 45000.0, caretakerPhone = "222", isOccupied = true, vacantUnits = 0),
+            Property(id = 3, userEmail = "test@example.com", propertyName = "Prop 3", location = "Loc 3", propertyType = "Res", monthlyRent = 50000.0, caretakerPhone = "333", isOccupied = false, vacantUnits = 1),
+            Property(id = 4, userEmail = "test@example.com", propertyName = "Prop 4", location = "Loc 4", propertyType = "Res", monthlyRent = 20000.0, caretakerPhone = "444", isOccupied = false, vacantUnits = 1)
         )
         liveDataProperties.value = list
 
