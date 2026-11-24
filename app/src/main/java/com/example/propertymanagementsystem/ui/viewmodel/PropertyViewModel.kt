@@ -15,10 +15,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.util.Locale
 
-/**
- * ViewModel responsible for managing property data, portfolio statistics, input validation,
- * and coordinating with [PropertyRepository] on the IO dispatcher.
- */
 class PropertyViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository: PropertyRepository
@@ -66,17 +62,10 @@ class PropertyViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    /**
-     * Sets the current logged-in user email to isolate property portfolios.
-     */
     fun setCurrentUser(email: String) {
         _currentUserEmail.value = email
     }
 
-    /**
-     * Validates property registration inputs against blank fields, invalid numbers, and negative rent.
-     * Provides clear user error feedback on invalid entries.
-     */
     fun validateAndAddProperty(
         name: String,
         location: String,
@@ -98,9 +87,6 @@ class PropertyViewModel(application: Application) : AndroidViewModel(application
         )
     }
 
-    /**
-     * Validates property registration inputs with extended unit count details and adds via Room repository if valid.
-     */
     fun validateAndAddPropertyWithUnits(
         name: String,
         location: String,
@@ -139,7 +125,7 @@ class PropertyViewModel(application: Application) : AndroidViewModel(application
             return Pair(false, "Monthly rent must be greater than zero.")
         }
 
-        // Automatic occupancy logic: if vacantUnits == 0, property becomes fully occupied automatically
+        // Automatic occupancy logic: if vacantUnits == 0, fully occupied (true), else respect input/isOccupied
         val autoIsOccupied = if (vacantUnits == 0) true else isOccupied
 
         val email = _currentUserEmail.value.orEmpty()
@@ -164,9 +150,6 @@ class PropertyViewModel(application: Application) : AndroidViewModel(application
         return Pair(true, "Property added successfully")
     }
 
-    /**
-     * Updates an existing property record asynchronously.
-     */
     fun updateProperty(property: Property) {
         val autoIsOccupied = if (property.vacantUnits == 0) true else property.isOccupied
         val updated = property.copy(isOccupied = autoIsOccupied)
@@ -175,9 +158,6 @@ class PropertyViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    /**
-     * Deletes a property record asynchronously.
-     */
     fun deleteProperty(property: Property) {
         viewModelScope.launch(Dispatchers.IO) {
             repository.deleteProperty(property)
