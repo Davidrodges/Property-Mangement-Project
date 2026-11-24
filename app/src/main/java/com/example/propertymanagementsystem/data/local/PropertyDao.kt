@@ -35,7 +35,7 @@ interface PropertyDao {
     fun getPropertiesByUser(email: String): LiveData<List<Property>>
 
     /**
-     * Deletes all property records from the database.
+     * Deletes all property the records from the property database.
      */
     @Query("DELETE FROM properties")
     suspend fun deleteAllProperties()
