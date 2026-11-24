@@ -139,6 +139,9 @@ class PropertyViewModel(application: Application) : AndroidViewModel(application
             return Pair(false, "Monthly rent must be greater than zero.")
         }
 
+        // Automatic occupancy logic: if vacantUnits == 0, property becomes fully occupied automatically
+        val autoIsOccupied = if (vacantUnits == 0) true else isOccupied
+
         val email = _currentUserEmail.value.orEmpty()
         val newProperty = Property(
             id = 0,
@@ -148,7 +151,7 @@ class PropertyViewModel(application: Application) : AndroidViewModel(application
             propertyType = trimmedType,
             monthlyRent = rent,
             caretakerPhone = trimmedPhone,
-            isOccupied = isOccupied,
+            isOccupied = autoIsOccupied,
             totalUnits = totalUnits,
             vacantUnits = vacantUnits,
             lastVacantDate = lastVacantDate
@@ -165,8 +168,10 @@ class PropertyViewModel(application: Application) : AndroidViewModel(application
      * Updates an existing property record asynchronously.
      */
     fun updateProperty(property: Property) {
+        val autoIsOccupied = if (property.vacantUnits == 0) true else property.isOccupied
+        val updated = property.copy(isOccupied = autoIsOccupied)
         viewModelScope.launch(Dispatchers.IO) {
-            repository.updateProperty(property)
+            repository.updateProperty(updated)
         }
     }
 
