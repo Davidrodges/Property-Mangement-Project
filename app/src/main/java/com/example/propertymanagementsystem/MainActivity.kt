@@ -23,6 +23,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -710,6 +711,17 @@ fun PropertyDashboardScreen(
         label = "glowAlpha"
     )
 
+    // Blink animation for occupancy card when opened by a new user (blinks twice)
+    val occupancyAlpha = remember { Animatable(1f) }
+    LaunchedEffect(isNewUser) {
+        if (isNewUser) {
+            repeat(2) {
+                occupancyAlpha.animateTo(0.2f, animationSpec = tween(300))
+                occupancyAlpha.animateTo(1f, animationSpec = tween(300))
+            }
+        }
+    }
+
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val coroutineScope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
@@ -997,7 +1009,9 @@ fun PropertyDashboardScreen(
                     }
 
                     Card(
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .graphicsLayer { alpha = occupancyAlpha.value },
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                     ) {
                         Column(modifier = Modifier.padding(12.dp)) {
